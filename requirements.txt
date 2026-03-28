@@ -1,0 +1,38 @@
+# Core NLP & ML
+torch>=2.0.0
+transformers>=4.35.0
+arabert>=1.0.0
+datasets>=2.14.0
+scikit-learn>=1.3.0
+scipy>=1.11.0
+
+# Arabic Text Processing
+camel-tools>=1.5.0
+pyarabic>=0.6.15
+
+# Data Pipeline
+pandas>=2.1.0
+numpy>=1.24.0
+faker>=19.0.0
+
+# Web Scraping
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+
+# Dashboard
+streamlit>=1.28.0
+plotly>=5.18.0
+wordcloud>=1.9.0
+arabic-reshaper>=3.0.0
+python-bidi>=0.4.2
+matplotlib>=3.8.0
+
+# Utilities
+python-dotenv>=1.0.0
+loguru>=0.7.0
+pyyaml>=6.0.1
+tqdm>=4.66.0
+
+# Testing
+pytest>=7.4.0
+pytest-cov>=4.1.0
