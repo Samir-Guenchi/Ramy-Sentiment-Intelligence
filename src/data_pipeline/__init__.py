@@ -1,4 +1,8 @@
 from .preprocessor import ArabicPreprocessor
-from .simulator import ReviewSimulator
+
+try:
+	from .simulator import ReviewSimulator
+except ImportError:
+	ReviewSimulator = None
 
 __all__ = ["ArabicPreprocessor", "ReviewSimulator"]

@@ -15,17 +15,37 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+def _parse_sentiment_labels(raw: str) -> List[str]:
+    labels = [part.strip().lower() for part in raw.split(",") if part.strip()]
+    if not labels:
+        return ["negative", "neutral", "positive"]
+    # Preserve order while removing duplicates.
+    return list(dict.fromkeys(labels))
+
+
 @dataclass
 class ModelConfig:
     """NLP model configuration."""
     name: str = os.getenv("MODEL_NAME", "aubmindlab/bert-base-arabertv02")
     cache_dir: str = os.getenv("MODEL_CACHE_DIR", str(BASE_DIR / "models_cache"))
+    output_dir: str = os.getenv("MODEL_OUTPUT_DIR", str(BASE_DIR / "models" / "checkpoints"))
     max_seq_length: int = int(os.getenv("MAX_SEQ_LENGTH", "256"))
     batch_size: int = int(os.getenv("BATCH_SIZE", "16"))
-    num_labels_sentiment: int = 3  # Positive, Negative, Neutral
+    sentiment_labels: List[str] = field(
+        default_factory=lambda: _parse_sentiment_labels(
+            os.getenv(
+                "SENTIMENT_LABELS",
+                "negative,neutral,positive,improvement,question",
+            )
+        )
+    )
+    num_labels_sentiment: int = field(init=False)
     learning_rate: float = 2e-5
     num_epochs: int = 5
     warmup_ratio: float = 0.1
+
+    def __post_init__(self):
+        self.num_labels_sentiment = len(self.sentiment_labels)
 
 
 @dataclass

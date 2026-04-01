@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ramy Enterprise Intelligence Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Cairo:wght@500;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <div class="background-grid"></div>
+
+  <div class="shell">
+    <aside class="side-panel">
+      <div class="brand">
+        <img src="/static/logo.jpg" alt="Ramy Logo" class="logo" />
+        <div>
+          <h1>Ramy BI Portal</h1>
+          <p>Enterprise Analytics Console</p>
+        </div>
+      </div>
+
+      <div class="panel-card">
+        <h3>Data Controls</h3>
+        <label>Category<select id="filter-category"></select></label>
+        <label>Subcategory<select id="filter-subcategory"></select></label>
+        <label>Product<select id="filter-product"></select></label>
+        <label>Sentiment<select id="filter-sentiment"></select></label>
+        <label>Search<input id="filter-search" type="text" placeholder="Search review text" /></label>
+
+        <div class="actions">
+          <button id="btn-apply" class="btn solid">Apply</button>
+          <button id="btn-reset" class="btn ghost">Reset</button>
+          <button id="btn-export" class="btn success">Export CSV</button>
+        </div>
+        <p id="status" class="status">System ready</p>
+      </div>
+
+      <div class="panel-card">
+        <h3>Ramy Official Categories</h3>
+        <div id="catalog-list" class="catalog-list"></div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div>
+          <h2>Consumer Intelligence Dashboard</h2>
+          <p>Cross-category performance with actionable review analytics.</p>
+        </div>
+        <div class="badge">Enterprise Edition</div>
+      </header>
+
+      <section class="kpis">
+        <article class="metric"><span>Total Reviews</span><strong id="kpi-total">-</strong></article>
+        <article class="metric"><span>Positive Rate</span><strong id="kpi-pos">-</strong></article>
+        <article class="metric"><span>Negative Rate</span><strong id="kpi-neg">-</strong></article>
+        <article class="metric"><span>Coverage</span><strong id="kpi-categories">-</strong></article>
+      </section>
+
+      <section class="charts">
+        <article class="card"><h3>Sentiment Mix</h3><div id="dist-chart" class="chart"></div></article>
+        <article class="card"><h3>Category Share</h3><div id="category-chart" class="chart"></div></article>
+        <article class="card wide"><h3>Monthly Trend by Class</h3><div id="trend-chart" class="chart"></div></article>
+        <article class="card"><h3>Top Product Lines</h3><div id="product-chart" class="chart"></div></article>
+        <article class="card"><h3>Aspect Scoreboard</h3><div id="aspect-chart" class="chart"></div></article>
+      </section>
+
+      <section class="card table-card">
+        <div class="table-head">
+          <h3>Review Explorer</h3>
+          <div class="pager">
+            <button id="btn-prev" class="btn ghost">Previous</button>
+            <span id="page-info">Page 1</span>
+            <button id="btn-next" class="btn ghost">Next</button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Review</th>
+                <th>Product</th>
+                <th>Category</th>
+                <th>Subcategory</th>
+                <th>Sentiment</th>
+              </tr>
+            </thead>
+            <tbody id="reviews-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

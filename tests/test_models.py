@@ -2,11 +2,6 @@
 Tests for Sentiment Classifier and ABSA Model.
 """
 
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
 from src.models.sentiment_classifier import SentimentClassifier
 from src.models.absa_model import AspectAnalyzer
 

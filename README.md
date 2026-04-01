@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="docs/assets/logo.png" alt="Ramy Sentiment Intelligence" width="200"/>
-</p>
-
 <h1 align="center">🧠 Ramy — Product Sentiment Intelligence System</h1>
 
 <p align="center">
@@ -49,7 +45,7 @@ A pipeline that:
 
 | Feature | Description |
 |---|---|
-| 🔍 **Sentiment Classification** | 3-class (Positive/Negative/Neutral) using AraBERT |
+| 🔍 **Sentiment Classification** | Configurable labels (default: 5-class) using AraBERT |
 | 🎯 **Aspect-Based Analysis** | Per-aspect sentiment for taste, price, packaging, availability, quality, health |
 | 🗺️ **Geographic Intelligence** | Per-wilaya sentiment mapping across Algeria's 58 wilayas |
 | 📊 **Interactive Dashboard** | 5-page Streamlit dashboard with real-time analytics |
@@ -74,7 +70,6 @@ ramy-sentiment/
 │   ├── pages/                 # Dashboard pages
 │   └── components/            # Reusable UI components
 ├── tests/                     # Unit tests
-├── notebooks/                 # Exploration notebooks
 └── docs/                      # Documentation & report structure
 ```
 
@@ -110,6 +105,11 @@ python -m src.data_pipeline.simulator
 streamlit run dashboard/app.py
 ```
 
+### Run the Professional Web Dashboard (No Streamlit)
+```bash
+uvicorn webapp.main:app --reload --port 8080
+```
+
 ### Analyze a Single Review
 ```python
 from src.models.sentiment_classifier import SentimentClassifier
@@ -117,7 +117,7 @@ from src.models.sentiment_classifier import SentimentClassifier
 classifier = SentimentClassifier()
 result = classifier.predict("عصير رامي بزاف بنين والسعر معقول")
 print(result)
-# {'sentiment': 'positive', 'confidence': 0.94}
+# {'sentiment': 'positive', 'confidence': 0.94, 'scores': {...}}
 ```
 
 ---

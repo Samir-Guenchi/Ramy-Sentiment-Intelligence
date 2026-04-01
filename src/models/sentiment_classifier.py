@@ -1,25 +1,20 @@
 """
-AraBERT-Based Sentiment Classifier
-====================================
-Fine-tuned transformer model for Arabic/Darja sentiment analysis.
-
-Architecture:
-    AraBERT (aubmindlab/bert-base-arabertv02) → Linear → Softmax
-    3-class: Positive | Negative | Neutral
-
-This module provides both training and inference capabilities.
+AraBERT-Based Sentiment/Intent Classifier
+==========================================
+Fine-tuned transformer model for Arabic/Darja analysis with configurable labels.
 """
 
-import json
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional
 
 import numpy as np
-import pandas as pd
+try:
+    import pandas as pd
+except ImportError:
+    pd = None
 
 try:
     import torch
-    import torch.nn as nn
     from torch.utils.data import DataLoader, Dataset
     from transformers import (
         AutoModelForSequenceClassification,
@@ -36,12 +31,12 @@ from src.data_pipeline.preprocessor import ArabicPreprocessor
 
 # ── Constants ─────────────────────────────────────────────
 
-LABEL_MAP = {0: "negative", 1: "neutral", 2: "positive"}
-LABEL_MAP_INV = {v: k for k, v in LABEL_MAP.items()}
-LABEL_COLORS = {
+DEFAULT_LABEL_COLORS = {
     "positive": "#2D8B4E",
     "negative": "#E31E24",
     "neutral": "#F7B731",
+    "improvement": "#1F6FEB",
+    "question": "#8B5CF6",
 }
 
 
@@ -89,6 +84,12 @@ class SentimentClassifier:
     ):
         self.settings = get_settings()
         self.model_name = model_name or self.settings.model.name
+        self.labels = list(self.settings.model.sentiment_labels)
+        self.label_to_idx = {label: idx for idx, label in enumerate(self.labels)}
+        self.idx_to_label = {idx: label for label, idx in self.label_to_idx.items()}
+        self.label_colors = {
+            label: DEFAULT_LABEL_COLORS.get(label, "#94A3B8") for label in self.labels
+        }
         self.preprocessor = ArabicPreprocessor()
         self.model = None
         self.tokenizer = None
@@ -110,7 +111,7 @@ class SentimentClassifier:
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
         self.model = AutoModelForSequenceClassification.from_pretrained(
             self.model_name,
-            num_labels=3,
+            num_labels=self.settings.model.num_labels_sentiment,
         )
         self.model.to(self.device)
         self.model.eval()
@@ -152,14 +153,9 @@ class SentimentClassifier:
 
         # Build result
         pred_idx = int(np.argmax(probs))
-        sentiment = LABEL_MAP[pred_idx]
-
-        # Incorporate emoji signal
-        emoji_boost = processed["emoji_sentiment"] * 0.1
+        sentiment = self.idx_to_label[pred_idx]
         scores = {
-            "negative": float(probs[0]),
-            "neutral": float(probs[1]),
-            "positive": float(probs[2]),
+            label: float(probs[idx]) for idx, label in enumerate(self.labels)
         }
 
         return {
@@ -184,6 +180,7 @@ class SentimentClassifier:
         """
         processed = self.preprocessor.preprocess(text)
         clean = processed["text"]
+        clean_lower = clean.lower()
 
         # Sentiment lexicons (Arabic + Darja)
         positive_words = {
@@ -204,6 +201,17 @@ class SentimentClassifier:
         pos_count = len(words & positive_words)
         neg_count = len(words & negative_words)
 
+        question_markers = {
+            "?", "؟", "واش", "علاش", "كيفاه", "متى", "وين", "هل", "why", "when", "where"
+        }
+        improvement_markers = {
+            "لازم", "يلزم", "نتمنى", "حبذا", "ياليت", "اقتراح", "زيدو", "نقصو", "من الافضل"
+        }
+        has_question = ("?" in clean_lower) or ("؟" in clean_lower) or any(
+            marker in clean_lower.split() for marker in question_markers
+        )
+        has_improvement = any(marker in clean_lower for marker in improvement_markers)
+
         # Include emoji signal
         emoji_score = processed["emoji_sentiment"]
 
@@ -215,18 +223,31 @@ class SentimentClassifier:
         elif total_signal < 0:
             sentiment = "negative"
             confidence = min(0.6 + abs(total_signal) * 0.1, 0.95)
+        elif has_question and "question" in self.label_to_idx:
+            sentiment = "question"
+            confidence = 0.65
+        elif has_improvement and "improvement" in self.label_to_idx:
+            sentiment = "improvement"
+            confidence = 0.65
         else:
             sentiment = "neutral"
             confidence = 0.5
 
+        scores = {label: 0.0 for label in self.labels}
+        if sentiment in scores:
+            scores[sentiment] = confidence
+
+        remaining = max(1e-6, 1.0 - confidence)
+        other_labels = [label for label in self.labels if label != sentiment]
+        if other_labels:
+            share = remaining / len(other_labels)
+            for label in other_labels:
+                scores[label] = share
+
         return {
             "sentiment": sentiment,
             "confidence": confidence,
-            "scores": {
-                "positive": confidence if sentiment == "positive" else (1 - confidence) / 2,
-                "neutral": confidence if sentiment == "neutral" else (1 - confidence) / 2,
-                "negative": confidence if sentiment == "negative" else (1 - confidence) / 2,
-            },
+            "scores": scores,
             "preprocessed_text": clean,
             "has_darja": processed["has_darja"],
             "has_french": processed["has_french"],
@@ -237,8 +258,8 @@ class SentimentClassifier:
 
     def train(
         self,
-        train_df: pd.DataFrame,
-        val_df: Optional[pd.DataFrame] = None,
+        train_df,
+        val_df=None,
         text_col: str = "text",
         label_col: str = "sentiment",
         output_dir: Optional[str] = None,
@@ -258,12 +279,22 @@ class SentimentClassifier:
         """
         if not TORCH_AVAILABLE:
             raise ImportError("PyTorch required for training.")
+        if pd is None:
+            raise ImportError("pandas is required for training.")
 
         if self.tokenizer is None:
             self.load_model()
 
+        def to_idx(label: str) -> int:
+            norm = str(label).strip().lower()
+            if norm not in self.label_to_idx:
+                raise ValueError(
+                    f"Unknown label '{label}'. Allowed labels: {self.labels}"
+                )
+            return self.label_to_idx[norm]
+
         # Convert labels to integers
-        train_labels = [LABEL_MAP_INV[l] for l in train_df[label_col]]
+        train_labels = [to_idx(l) for l in train_df[label_col]]
         train_texts = train_df[text_col].tolist()
 
         # Preprocess texts
@@ -297,7 +328,13 @@ class SentimentClassifier:
 
         # Training loop
         self.model.train()
-        metrics = {"train_loss": [], "epoch_losses": []}
+        metrics = {"epoch_losses": [], "epoch_accuracies": []}
+        best_val_f1 = -1.0
+
+        if output_dir is None:
+            output_dir = self.settings.model.output_dir
+        output_path = Path(output_dir)
+        output_path.mkdir(parents=True, exist_ok=True)
 
         for epoch in range(self.settings.model.num_epochs):
             epoch_loss = 0.0
@@ -331,21 +368,31 @@ class SentimentClassifier:
             avg_loss = epoch_loss / len(train_loader)
             accuracy = correct / total
             metrics["epoch_losses"].append(avg_loss)
+            metrics["epoch_accuracies"].append(accuracy)
             print(f"  Epoch {epoch+1}/{self.settings.model.num_epochs} — "
                   f"Loss: {avg_loss:.4f} — Accuracy: {accuracy:.4f}")
 
+            if val_df is not None and len(val_df) > 0:
+                val_metrics = self.evaluate(val_df, text_col=text_col, label_col=label_col)
+                metrics[f"epoch_{epoch+1}_val_f1_macro"] = val_metrics["f1_macro"]
+                print(f"    Validation F1-macro: {val_metrics['f1_macro']:.4f}")
+
+                if val_metrics["f1_macro"] > best_val_f1:
+                    best_val_f1 = val_metrics["f1_macro"]
+                    best_path = output_path / "best"
+                    best_path.mkdir(parents=True, exist_ok=True)
+                    self.model.save_pretrained(best_path)
+                    self.tokenizer.save_pretrained(best_path)
+
         # Save model
-        if output_dir:
-            output_path = Path(output_dir)
-            output_path.mkdir(parents=True, exist_ok=True)
-            self.model.save_pretrained(output_path)
-            self.tokenizer.save_pretrained(output_path)
-            print(f"💾 Model saved to {output_path}")
+        self.model.save_pretrained(output_path)
+        self.tokenizer.save_pretrained(output_path)
+        print(f"💾 Model saved to {output_path}")
 
         self.model.eval()
         return metrics
 
-    def evaluate(self, test_df: pd.DataFrame, text_col="text", label_col="sentiment") -> Dict:
+    def evaluate(self, test_df, text_col="text", label_col="sentiment") -> Dict:
         """
         Evaluate model on test data.
 
@@ -358,17 +405,25 @@ class SentimentClassifier:
             confusion_matrix,
             f1_score,
         )
+        if pd is None:
+            raise ImportError("pandas is required for evaluation.")
 
         predictions = self.predict_batch(test_df[text_col].tolist())
         y_pred = [p["sentiment"] for p in predictions]
-        y_true = test_df[label_col].tolist()
+        y_true = [str(label).strip().lower() for label in test_df[label_col].tolist()]
 
         return {
             "accuracy": accuracy_score(y_true, y_pred),
-            "f1_macro": f1_score(y_true, y_pred, average="macro"),
-            "classification_report": classification_report(y_true, y_pred),
+            "f1_macro": f1_score(y_true, y_pred, average="macro", labels=self.labels),
+            "classification_report": classification_report(
+                y_true,
+                y_pred,
+                labels=self.labels,
+                zero_division=0,
+            ),
             "confusion_matrix": confusion_matrix(
                 y_true, y_pred,
-                labels=["positive", "neutral", "negative"],
+                labels=self.labels,
             ).tolist(),
+            "labels": self.labels,
         }

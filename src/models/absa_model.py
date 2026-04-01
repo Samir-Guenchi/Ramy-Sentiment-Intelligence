@@ -79,20 +79,35 @@ class AspectAnalyzer:
         clean_text = processed["text"]
         words = clean_text.split()
         words_set = set(words)
+        normalized_tokens = [w.strip(".,!?؟،:;\"'").lower() for w in words]
 
         # Step 1: Detect aspects
         detected_aspects = {}
         for aspect, keywords in self.aspect_keywords.items():
             # Check for keyword matches
             matched_keywords = []
+            keyword_positions = []
             for keyword in keywords:
-                if keyword in clean_text:
+                key = keyword.lower()
+                positions = [
+                    i for i, tok in enumerate(normalized_tokens)
+                    if tok == key
+                ]
+                if positions:
+                    matched_keywords.append(keyword)
+                    keyword_positions.extend(positions)
+                elif " " in keyword and key in clean_text.lower():
+                    # Fallback for multi-word keywords.
                     matched_keywords.append(keyword)
 
             if matched_keywords:
                 # Step 2: Determine per-aspect sentiment
                 aspect_sentiment = self._classify_aspect_sentiment(
-                    clean_text, words_set, matched_keywords, processed
+                    text=clean_text,
+                    words=normalized_tokens,
+                    words_set=words_set,
+                    keyword_positions=keyword_positions,
+                    processed=processed,
                 )
                 detected_aspects[aspect] = {
                     "detected": True,
@@ -190,20 +205,39 @@ class AspectAnalyzer:
     def _classify_aspect_sentiment(
         self,
         text: str,
+        words: List[str],
         words_set: set,
-        matched_keywords: List[str],
+        keyword_positions: List[int],
         processed: Dict,
     ) -> Dict:
         """
         Classify sentiment for a specific aspect using context window analysis.
         """
-        # Check for positive/negative modifiers near aspect keywords
-        pos_signal = len(words_set & self.positive_modifiers)
-        neg_signal = len(words_set & self.negative_modifiers)
+        negation_patterns = {"ما", "مش", "ماشي", "لا", "بلا", "مكانش", "pas", "ne"}
 
-        # Check negation patterns
-        negation_patterns = ["ما", "مش", "ماشي", "لا", "بلا", "مكانش", "pas", "ne"]
-        has_negation = any(neg in text for neg in negation_patterns)
+        # Use a local context window around each matched aspect keyword.
+        pos_signal = 0
+        neg_signal = 0
+        has_local_negation = False
+
+        if keyword_positions:
+            windows = []
+            for pos in keyword_positions:
+                start = max(0, pos - 3)
+                end = min(len(words), pos + 4)
+                windows.append(words[start:end])
+
+            for window in windows:
+                window_set = set(window)
+                pos_signal += len(window_set & self.positive_modifiers)
+                neg_signal += len(window_set & self.negative_modifiers)
+                if window_set & negation_patterns:
+                    has_local_negation = True
+        else:
+            # Fallback if no exact token position was found.
+            pos_signal = len(words_set & self.positive_modifiers)
+            neg_signal = len(words_set & self.negative_modifiers)
+            has_local_negation = bool(set(words) & negation_patterns)
 
         # Emoji signal
         emoji_signal = processed.get("emoji_sentiment", 0)
@@ -212,9 +246,17 @@ class AspectAnalyzer:
         total_signal = pos_signal - neg_signal + emoji_signal
 
         # Negation flips sentiment
-        if has_negation and abs(total_signal) > 0:
-            # Only flip if negation is near a sentiment word
-            total_signal *= -0.5  # Partial flip (negation is noisy)
+        if has_local_negation and abs(total_signal) > 0:
+            total_signal *= -1
+
+        if total_signal == 0:
+            fallback = self.classifier.predict(text)
+            fallback_sentiment = fallback.get("sentiment", "neutral")
+            if fallback_sentiment in {"positive", "negative", "neutral"}:
+                return {
+                    "sentiment": fallback_sentiment,
+                    "confidence": min(float(fallback.get("confidence", 0.5)) * 0.8, 0.85),
+                }
 
         if total_signal > 0:
             sentiment = "positive"

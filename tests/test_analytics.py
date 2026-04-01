@@ -2,11 +2,6 @@
 Tests for the Insight Engine.
 """
 
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
 from src.data_pipeline.simulator import ReviewSimulator
 from src.analytics.insight_engine import InsightEngine
 

@@ -30,7 +30,7 @@ Our preprocessing handles the unique challenges of Algerian Arabic:
 
 ### 2.1 Sentiment Classification
 - **Base Model**: AraBERT v0.2 (`aubmindlab/bert-base-arabertv02`)
-- **Architecture**: AraBERT → [CLS] pooling → Linear(768, 3) → Softmax
+- **Architecture**: AraBERT → [CLS] pooling → Linear(768, N) → Softmax (N configurable)
 - **Training**: Transfer learning with fine-tuning on Ramy-specific data
 - **Optimizer**: AdamW (lr=2e-5, warmup=10%)
 - **Fallback**: Rule-based lexicon classifier when GPU unavailable

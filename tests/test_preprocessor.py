@@ -2,12 +2,6 @@
 Tests for the Arabic/Darja Text Preprocessor.
 """
 
-import sys
-from pathlib import Path
-
-# Add project root
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
 from src.data_pipeline.preprocessor import ArabicPreprocessor
 
 

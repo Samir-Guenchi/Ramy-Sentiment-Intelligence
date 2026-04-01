@@ -150,7 +150,8 @@ with st.sidebar:
 # ── Load Data ──────────────────────────────────────────────
 @st.cache_data
 def load_review_data():
-    """Load sample review data."""
+    """Load review data for dashboard, with schema fallback for train CSV files."""
+    import os
     import sys
     from pathlib import Path
 
@@ -160,6 +161,27 @@ def load_review_data():
 
     from src.data_pipeline.simulator import ReviewSimulator
     import pandas as pd
+
+    configured_path = os.getenv("REVIEW_DATA_PATH", "").strip()
+    if configured_path:
+        configured_file = Path(configured_path)
+        if configured_file.exists():
+            sep = ";" if configured_file.suffix.lower() == ".csv" else ","
+            df = pd.read_csv(configured_file, sep=sep)
+            # Adapt training-style schema (text;product;label) for dashboard pages.
+            if "label" in df.columns and "sentiment" not in df.columns:
+                df = df.rename(columns={"label": "sentiment"})
+            if "rating" not in df.columns:
+                df["rating"] = 3
+            if "platform" not in df.columns:
+                df["platform"] = "dataset"
+            if "wilaya" not in df.columns:
+                df["wilaya"] = "غير محدد"
+            if "timestamp" not in df.columns:
+                df["timestamp"] = pd.Timestamp.now().isoformat()
+            if "aspects" not in df.columns:
+                df["aspects"] = "{}"
+            return df
 
     sample_path = project_root / "data" / "samples" / "reviews.csv"
 
