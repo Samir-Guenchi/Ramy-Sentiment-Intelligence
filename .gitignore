@@ -38,6 +38,8 @@ models_cache/
 *.pt
 *.pth
 *.onnx
+models/runtime/
+ramy_h100_finetuned_model.zip
 
 # Logs
 logs/

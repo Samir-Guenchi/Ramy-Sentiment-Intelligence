@@ -21,6 +21,25 @@ async function fetchJson(url) {
   return res.json();
 }
 
+async function postJson(url, payload) {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    let msg = `Request failed: ${res.status}`;
+    try {
+      const data = await res.json();
+      msg = data.detail || msg;
+    } catch (_) {
+      // Ignore JSON parse error and keep default message.
+    }
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
 function buildQuery(params) {
   const sp = new URLSearchParams();
   Object.entries(params).forEach(([k, v]) => {
@@ -124,6 +143,133 @@ function renderAspects(rows) {
     paper_bgcolor: "rgba(0,0,0,0)",
     plot_bgcolor: "rgba(0,0,0,0)",
   }, { displayModeBar: false, responsive: true });
+}
+
+function renderPredictDistribution(dist) {
+  const keys = Object.keys(dist || {});
+  const values = keys.map((k) => dist[k]);
+  if (!keys.length) {
+    Plotly.purge("predict-dist-chart");
+    return;
+  }
+  Plotly.newPlot("predict-dist-chart", [{
+    x: keys,
+    y: values,
+    type: "bar",
+    marker: { color: "#2563eb" },
+  }], {
+    margin: { t: 10, l: 34, r: 10, b: 60 },
+    paper_bgcolor: "rgba(0,0,0,0)",
+    plot_bgcolor: "rgba(0,0,0,0)",
+  }, { displayModeBar: false, responsive: true });
+}
+
+function renderPredictRows(rows) {
+  const body = document.getElementById("predict-body");
+  body.innerHTML = "";
+
+  (rows || []).forEach((r, idx) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${idx + 1}</td>
+      <td>${r.text}</td>
+      <td><span class="sentiment-pill sentiment-${r.predicted_class}">${r.predicted_class}</span></td>
+      <td>${(Number(r.confidence || 0) * 100).toFixed(2)}%</td>
+    `;
+    body.appendChild(tr);
+  });
+}
+
+function toCsv(rows) {
+  const header = ["index", "text", "predicted_class", "confidence"];
+  const lines = [header.join(",")];
+  (rows || []).forEach((r, idx) => {
+    const cells = [
+      String(idx + 1),
+      `"${String(r.text || "").replace(/"/g, '""')}"`,
+      String(r.predicted_class || ""),
+      String((Number(r.confidence || 0) * 100).toFixed(2)),
+    ];
+    lines.push(cells.join(","));
+  });
+  return lines.join("\n");
+}
+
+function countPredictedClasses(rows) {
+  const counts = {};
+  (rows || []).forEach((r) => {
+    const key = r.predicted_class || "unknown";
+    counts[key] = (counts[key] || 0) + 1;
+  });
+  return counts;
+}
+
+function buildPredictionSummary(rows) {
+  const counts = countPredictedClasses(rows);
+  const total = (rows || []).length;
+  const parts = Object.keys(counts)
+    .sort()
+    .map((k) => `${k}: ${counts[k]}`);
+  return `Ramy prediction summary | total=${total} | ${parts.join(" | ")}`;
+}
+
+function downloadTextFile(filename, content) {
+  const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+async function loadModelStatus() {
+  try {
+    const status = await fetchJson("/api/model/status");
+    const el = document.getElementById("model-status");
+    const badge = document.getElementById("model-badge");
+    if (status.ready) {
+      el.textContent = `Model status: ready (${status.model_dir})`;
+      el.style.color = "#86efac";
+      if (badge) badge.textContent = "Model: ready";
+    } else {
+      el.textContent = `Model status: unavailable (${status.error || "unknown error"})`;
+      el.style.color = "#fca5a5";
+      if (badge) badge.textContent = "Model: unavailable";
+    }
+  } catch (error) {
+    const el = document.getElementById("model-status");
+    const badge = document.getElementById("model-badge");
+    el.textContent = `Model status: error (${error.message})`;
+    el.style.color = "#fca5a5";
+    if (badge) badge.textContent = "Model: error";
+  }
+}
+
+async function runPredictions() {
+  const input = document.getElementById("predict-input").value || "";
+  const comments = input
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (!comments.length) {
+    setStatus("Add at least one comment before prediction.", true);
+    return;
+  }
+
+  setStatus(`Predicting ${comments.length} comment(s)...`);
+  const payload = await postJson("/api/model/predict", { comments });
+
+  const rows = payload.rows || [];
+  renderPredictRows(rows);
+  renderPredictDistribution(payload.distribution || {});
+  document.getElementById("predict-summary").textContent =
+    `Predicted ${payload.total || 0} comment(s)`;
+  window.lastPredictionRows = rows;
+  setStatus("Prediction completed.");
 }
 
 function renderTable(payload) {
@@ -260,14 +406,85 @@ function attachEvents() {
       setStatus(`Error: ${error.message}`, true);
     }
   });
+
+  document.getElementById("btn-predict").addEventListener("click", async () => {
+    try {
+      await runPredictions();
+    } catch (error) {
+      setStatus(`Prediction error: ${error.message}`, true);
+    }
+  });
+
+  document.getElementById("btn-clear-predict").addEventListener("click", () => {
+    document.getElementById("predict-input").value = "";
+    document.getElementById("predict-body").innerHTML = "";
+    document.getElementById("predict-summary").textContent = "No predictions yet";
+    window.lastPredictionRows = [];
+    Plotly.purge("predict-dist-chart");
+  });
+
+  document.querySelectorAll(".sample-chip").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const text = btn.dataset.text || "";
+      const input = document.getElementById("predict-input");
+      const current = input.value.trim();
+      input.value = current ? `${current}\n${text}` : text;
+      input.focus();
+    });
+  });
+
+  document.getElementById("btn-export-predict").addEventListener("click", () => {
+    const rows = window.lastPredictionRows || [];
+    if (!rows.length) {
+      setStatus("No predictions available to export.", true);
+      return;
+    }
+    downloadTextFile("ramy_predictions.csv", toCsv(rows));
+    setStatus("Prediction CSV exported.");
+  });
+
+  document.getElementById("btn-copy-predict").addEventListener("click", async () => {
+    const rows = window.lastPredictionRows || [];
+    if (!rows.length) {
+      setStatus("No predictions available to summarize.", true);
+      return;
+    }
+    const summary = buildPredictionSummary(rows);
+    try {
+      await navigator.clipboard.writeText(summary);
+      setStatus("Prediction summary copied to clipboard.");
+    } catch (_) {
+      setStatus(summary);
+    }
+  });
+
+  document.getElementById("predict-file").addEventListener("change", async (event) => {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const normalized = text
+        .split(/\r?\n/)
+        .map((line) => line.split(";")[0].trim())
+        .filter(Boolean)
+        .join("\n");
+      document.getElementById("predict-input").value = normalized;
+      setStatus(`Loaded ${file.name} into prediction box.`);
+    } catch (error) {
+      setStatus(`Could not read file: ${error.message}`, true);
+    }
+  });
 }
 
 async function boot() {
   try {
     setStatus("Initializing enterprise portal...");
+    window.lastPredictionRows = [];
     await loadMeta();
     attachEvents();
     await loadDashboard();
+    await loadModelStatus();
   } catch (error) {
     console.error(error);
     setStatus(`Startup failed: ${error.message}`, true);
