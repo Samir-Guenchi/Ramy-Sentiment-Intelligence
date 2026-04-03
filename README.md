@@ -110,6 +110,26 @@ streamlit run dashboard/app.py
 uvicorn webapp.main:app --reload --port 8080
 ```
 
+### Train with Competition Pipeline (CV Ensemble + Threshold Tuning)
+```bash
+python -m src.models.train_sentiment \
+  --train-file data/augmented/Ramy_data_train_target_1500.csv \
+  --val-file data/augmented/Ramy_data_val_target_1500.csv \
+  --output-dir models/competition \
+  --metrics-output data/processed/competition_metrics.json \
+  --cv-folds 5
+```
+
+Optional pseudo-labeling from unlabeled data:
+```bash
+python -m src.models.train_sentiment \
+  --train-file data/augmented/Ramy_data_train_target_1500.csv \
+  --val-file data/augmented/Ramy_data_val_target_1500.csv \
+  --unlabeled-file data/raw/unlabeled_reviews.csv \
+  --enable-pseudo-labeling \
+  --pseudo-label-min-confidence 0.92
+```
+
 ### Analyze a Single Review
 ```python
 from src.models.sentiment_classifier import SentimentClassifier
@@ -128,7 +148,14 @@ print(result)
 2. **Preprocessing** — Arabic normalization, diacritics removal, Darja handling, emoji extraction
 3. **Model** — `aubmindlab/bert-base-arabertv02` fine-tuned on Algerian product reviews
 4. **ABSA** — Dual-task: Aspect Term Extraction + Aspect Sentiment Classification
-5. **Evaluation** — F1-macro, precision, recall, confusion matrix, Cohen's kappa
+5. **Evaluation** — stratified group K-fold OOF F1-macro, validation F1-macro, confusion matrix
+6. **Leaderboard Optimizations** — weighted ensemble, per-class threshold tuning, temperature scaling, TTA
+
+## 🏆 Competition Workflow
+
+- Playbook: `docs/competition_playbook.md`
+- Submission tracker template: `docs/submission_log_template.csv`
+- Training entrypoint: `python -m src.models.train_sentiment`
 
 ---
 
@@ -137,6 +164,43 @@ print(result)
 Our standout feature: **AI-generated Arabic business reports** that automatically summarize findings into actionable paragraphs for Ramy's decision-makers. Example output:
 
 > *"تحليل 2,847 مراجعة يكشف أن 73% من التعليقات السلبية في ولاية البليدة تتعلق بنسبة السكر في عصير رامي أب. نقترح تطوير نسخة منخفضة السكر لهذه المنطقة."*
+
+---
+
+## 🏭 Industry Track Alignment
+
+This project is explicitly designed for the **Industry Track: AI for Sentiment Analysis** and maps to real business needs.
+
+### Business Problems Addressed
+
+1. Customer feedback analysis at scale for product lines.
+2. Opinion mining from social and review-style text.
+3. Brand and reputation monitoring through sentiment trends.
+4. Marketing intelligence by product, aspect, and geography.
+5. Decision support for product, pricing, and packaging strategy.
+
+### Ramy-Focused Enterprise Use Cases
+
+1. Detect negative sentiment spikes for specific products in near real time.
+2. Identify root causes using aspect-level analysis (taste, price, packaging, availability, quality, health).
+3. Compare brand perception by wilaya to support regional campaign planning.
+4. Export filtered review evidence for internal quality and marketing teams.
+5. Generate executive-ready summaries for strategic meetings.
+
+### Why This Fits Industry Deployment
+
+1. Uses production-friendly APIs (FastAPI) and dashboard analytics.
+2. Supports reproducible model training and evaluation metrics.
+3. Includes taxonomy-driven product categorization for reporting consistency.
+4. Provides explainable outputs (confusion matrix, class reports, hard examples).
+5. Bridges NLP research and actionable business decisions.
+
+### Suggested Demo Narrative (Competition Pitch)
+
+1. Start with a live dashboard overview of sentiment by category and subcategory.
+2. Drill into a negative trend and show aspect-level diagnosis.
+3. Export supporting reviews and show evidence-backed recommendation.
+4. Close with KPI impact: faster response time, improved customer satisfaction, better product-market fit.
 
 ---
 
