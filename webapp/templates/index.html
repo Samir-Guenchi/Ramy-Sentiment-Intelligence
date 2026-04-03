@@ -3,100 +3,68 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ramy Enterprise Intelligence Platform</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Cairo:wght@500;700;800&display=swap" rel="stylesheet">
-  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
-  <link rel="stylesheet" href="/static/styles.css" />
+  <title>Ramy Sentiment Intelligence</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Cairo:wght@500;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ["Outfit", "Cairo", "sans-serif"],
+          },
+          colors: {
+            navy: "#7c2d12",
+            electric: "#f97316",
+            sentimentPositive: "#16a34a",
+            sentimentNegative: "#dc2626",
+            sentimentNeutral: "#f59e0b",
+            sentimentImprovement: "#9333ea",
+            sentimentQuestion: "#0f766e",
+          },
+          boxShadow: {
+            soft: "0 14px 40px rgba(194, 65, 12, 0.16)",
+          },
+        },
+      },
+    };
+  </script>
+  <link rel="stylesheet" href="/static/dashboard.css?v=20260403g" />
 </head>
-<body>
-  <div class="background-grid"></div>
-
-  <div class="shell">
-    <aside class="side-panel">
-      <div class="brand">
-        <img src="/static/logo.jpg" alt="Ramy Logo" class="logo" />
-        <div>
-          <h1>Ramy BI Portal</h1>
-          <p>Enterprise Analytics Console</p>
-        </div>
-      </div>
-
-      <div class="panel-card">
-        <h3>Data Controls</h3>
-        <label>Category<select id="filter-category"></select></label>
-        <label>Subcategory<select id="filter-subcategory"></select></label>
-        <label>Product<select id="filter-product"></select></label>
-        <label>Sentiment<select id="filter-sentiment"></select></label>
-        <label>Search<input id="filter-search" type="text" placeholder="Search review text" /></label>
-
-        <div class="actions">
-          <button id="btn-apply" class="btn solid">Apply</button>
-          <button id="btn-reset" class="btn ghost">Reset</button>
-          <button id="btn-export" class="btn success">Export CSV</button>
-        </div>
-        <p id="status" class="status">System ready</p>
-      </div>
-
-      <div class="panel-card">
-        <h3>Ramy Official Categories</h3>
-        <div id="catalog-list" class="catalog-list"></div>
-      </div>
-    </aside>
-
-    <main class="main-content">
-      <header class="topbar">
-        <div>
-          <h2>Consumer Intelligence Dashboard</h2>
-          <p>Cross-category performance with actionable review analytics.</p>
-        </div>
-        <div class="badge">Enterprise Edition</div>
-      </header>
-
-      <section class="kpis">
-        <article class="metric"><span>Total Reviews</span><strong id="kpi-total">-</strong></article>
-        <article class="metric"><span>Positive Rate</span><strong id="kpi-pos">-</strong></article>
-        <article class="metric"><span>Negative Rate</span><strong id="kpi-neg">-</strong></article>
-        <article class="metric"><span>Coverage</span><strong id="kpi-categories">-</strong></article>
-      </section>
-
-      <section class="charts">
-        <article class="card"><h3>Sentiment Mix</h3><div id="dist-chart" class="chart"></div></article>
-        <article class="card"><h3>Category Share</h3><div id="category-chart" class="chart"></div></article>
-        <article class="card wide"><h3>Monthly Trend by Class</h3><div id="trend-chart" class="chart"></div></article>
-        <article class="card"><h3>Top Product Lines</h3><div id="product-chart" class="chart"></div></article>
-        <article class="card"><h3>Aspect Scoreboard</h3><div id="aspect-chart" class="chart"></div></article>
-      </section>
-
-      <section class="card table-card">
-        <div class="table-head">
-          <h3>Review Explorer</h3>
-          <div class="pager">
-            <button id="btn-prev" class="btn ghost">Previous</button>
-            <span id="page-info">Page 1</span>
-            <button id="btn-next" class="btn ghost">Next</button>
-          </div>
-        </div>
-
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Review</th>
-                <th>Product</th>
-                <th>Category</th>
-                <th>Subcategory</th>
-                <th>Sentiment</th>
-              </tr>
-            </thead>
-            <tbody id="reviews-body"></tbody>
-          </table>
-        </div>
-      </section>
-    </main>
+<body class="bg-orange-50 text-slate-900">
+  <div id="root" class="min-h-screen flex items-center justify-center text-slate-700">
+    <div style="text-align:center; max-width:760px; padding:24px;">
+      <h1 style="margin:0 0 10px; font-size:24px; font-weight:800; color:#7c2d12;">Ramy Sentiment Intelligence</h1>
+      <p style="margin:0;">Loading dashboard application...</p>
+      <p style="margin:10px 0 0; font-size:13px; color:#64748b;">If this takes too long, refresh the page and verify internet access for CDN scripts.</p>
+    </div>
   </div>
 
-  <script src="/static/app.js"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js" crossorigin></script>
+  <script>
+    // Some UMD bundles (e.g. lucide-react) look for lowercase `react` global.
+    window.react = window.React;
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/recharts@2.12.7/umd/Recharts.min.js"></script>
+  <script src="https://unpkg.com/lucide-react@0.468.0/dist/umd/lucide-react.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script>
+    window.addEventListener('error', function (event) {
+      var root = document.getElementById('root');
+      if (!root) return;
+      root.innerHTML = '<div style="max-width:840px;margin:40px auto;padding:20px;border:1px solid #fecaca;background:#fff1f2;border-radius:12px;font-family:Outfit,Cairo,sans-serif;">'
+        + '<h2 style="margin:0 0 8px;color:#7f1d1d;">Frontend Runtime Error</h2>'
+        + '<p style="margin:0 0 8px;color:#7f1d1d;">The dashboard failed to render in-browser.</p>'
+        + '<pre style="white-space:pre-wrap;color:#111827;background:#fff;border:1px solid #e5e7eb;padding:10px;border-radius:8px;">'
+        + String(event.message || 'Unknown error')
+        + '</pre>'
+        + '</div>';
+    });
+  </script>
+  <script type="text/babel" data-presets="env,react" src="/static/dashboard-app.jsx?v=20260403g"></script>
 </body>
 </html>

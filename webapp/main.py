@@ -4,13 +4,14 @@ import csv
 import json
 import os
 import re
+import shutil
 from collections import Counter, defaultdict
 from datetime import datetime
 from io import StringIO
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from fastapi import FastAPI, HTTPException, Query  # type: ignore[reportMissingImports]
+from fastapi import Body, FastAPI, HTTPException, Query  # type: ignore[reportMissingImports]
 from fastapi.responses import HTMLResponse, Response  # type: ignore[reportMissingImports]
 from fastapi.staticfiles import StaticFiles  # type: ignore[reportMissingImports]
 from fastapi.templating import Jinja2Templates  # type: ignore[reportMissingImports]
@@ -20,6 +21,12 @@ from starlette.requests import Request  # type: ignore[reportMissingImports]
 BASE_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_DATA_PATH = BASE_DIR / "data" / "augmented" / "Ramy_data_augmented_target_1500.csv"
 _CACHE = {"path": None, "mtime": None, "rows": []}
+_MODEL_CACHE: Dict[str, Any] = {
+    "ready": False,
+    "error": "",
+    "pipe": None,
+    "model_dir": "",
+}
 
 
 CATALOG = {
@@ -28,6 +35,96 @@ CATALOG = {
     "Boisson au lait": ["milky : 1l", "milky : 20cl", "milky : 300ml", "milky : 25cl"],
     "Produits laitiers": ["lais", "yupty", "raib et lben", "cherebt", "ramy up duo"],
 }
+
+
+def _resolve_model_source_path() -> Path:
+    configured = os.getenv("FINETUNED_MODEL_PATH", "").strip()
+    if configured:
+        p = Path(configured)
+        if p.exists():
+            return p
+
+    defaults = [
+        BASE_DIR / "ramy_h100_finetuned_model.zip",
+        BASE_DIR / "models" / "checkpoints" / "h100_arabert_ft" / "final_model",
+    ]
+    for candidate in defaults:
+        if candidate.exists():
+            return candidate
+
+    return defaults[0]
+
+
+def _resolve_runtime_model_dir(source: Path) -> Path:
+    if source.is_dir():
+        return source
+
+    runtime_dir = BASE_DIR / "models" / "runtime" / "ramy_h100_finetuned_model"
+    runtime_dir.parent.mkdir(parents=True, exist_ok=True)
+
+    if source.suffix.lower() == ".zip":
+        if runtime_dir.exists():
+            return runtime_dir
+        shutil.unpack_archive(str(source), str(runtime_dir))
+        return runtime_dir
+
+    raise FileNotFoundError(f"Unsupported model source: {source}")
+
+
+def _load_prediction_pipeline() -> Any:
+    if _MODEL_CACHE["ready"] and _MODEL_CACHE["pipe"] is not None:
+        return _MODEL_CACHE["pipe"]
+
+    try:
+        import torch  # type: ignore[reportMissingImports]
+        from transformers import (  # type: ignore[reportMissingImports]
+            AutoModelForSequenceClassification,
+            AutoTokenizer,
+            pipeline,
+        )
+
+        source = _resolve_model_source_path()
+        if not source.exists():
+            raise FileNotFoundError(
+                f"Fine-tuned model not found at: {source}. "
+                "Set FINETUNED_MODEL_PATH to your model folder or zip."
+            )
+
+        model_dir = _resolve_runtime_model_dir(source)
+        device = 0 if torch.cuda.is_available() else -1
+        try:
+            clf = pipeline(
+                task="text-classification",
+                model=str(model_dir),
+                tokenizer=str(model_dir),
+                device=device,
+            )
+        except Exception as first_exc:
+            # Some environments trigger "meta tensor" issues on lazy loading.
+            # Fallback to explicit model/tokenizer materialization on CPU.
+            tokenizer = AutoTokenizer.from_pretrained(str(model_dir), local_files_only=True)
+            model = AutoModelForSequenceClassification.from_pretrained(
+                str(model_dir),
+                low_cpu_mem_usage=False,
+                local_files_only=True,
+            )
+            clf = pipeline(
+                task="text-classification",
+                model=model,
+                tokenizer=tokenizer,
+                device=-1,
+            )
+
+        _MODEL_CACHE["ready"] = True
+        _MODEL_CACHE["error"] = ""
+        _MODEL_CACHE["pipe"] = clf
+        _MODEL_CACHE["model_dir"] = str(model_dir)
+        return clf
+    except Exception as exc:
+        _MODEL_CACHE["ready"] = False
+        _MODEL_CACHE["error"] = str(exc)
+        _MODEL_CACHE["pipe"] = None
+        raise
 
 
 def _resolve_data_path() -> Path:
@@ -325,6 +422,78 @@ def api_health() -> Dict[str, str]:
         "status": "ok",
         "timestamp": datetime.now().isoformat(),
         "dataset": str(_resolve_data_path()),
+    }
+
+
+@app.get("/api/model/status")
+def api_model_status() -> Dict[str, Any]:
+    try:
+        _load_prediction_pipeline()
+        return {
+            "ready": True,
+            "model_dir": _MODEL_CACHE.get("model_dir", ""),
+            "error": "",
+        }
+    except Exception as exc:
+        return {
+            "ready": False,
+            "model_dir": _MODEL_CACHE.get("model_dir", ""),
+            "error": str(exc),
+        }
+
+
+@app.post("/api/model/predict")
+def api_model_predict(payload: Dict[str, Any] = Body(default={})):  # type: ignore[reportUnknownParameterType]
+    comments_raw = payload.get("comments", [])
+    if isinstance(comments_raw, str):
+        comments = [line.strip() for line in comments_raw.splitlines() if line.strip()]
+    elif isinstance(comments_raw, list):
+        comments = [str(item).strip() for item in comments_raw if str(item).strip()]
+    else:
+        comments = []
+
+    if not comments:
+        raise HTTPException(status_code=400, detail="Provide at least one comment in 'comments'.")
+
+    if len(comments) > 1000:
+        raise HTTPException(status_code=400, detail="Too many comments. Max allowed is 1000.")
+
+    try:
+        clf = _load_prediction_pipeline()
+        raw_preds = clf(comments, truncation=True, max_length=256)
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"Model not available: {exc}") from exc
+
+    rows = []
+    for text, pred in zip(comments, raw_preds):
+        rows.append(
+            {
+                "text": text,
+                "predicted_class": str(pred.get("label", "unknown")).lower(),
+                "confidence": float(pred.get("score", 0.0)),
+            }
+        )
+
+    distribution = Counter(r["predicted_class"] for r in rows)
+
+    return {
+        "total": len(rows),
+        "rows": rows,
+        "distribution": dict(distribution),
+        "model_dir": _MODEL_CACHE.get("model_dir", ""),
+    }
+
+
+@app.get("/api/model/predict")
+def api_model_predict_help() -> Dict[str, Any]:
+    return {
+        "detail": "Method Not Allowed for GET. Use POST with JSON body: {'comments': ['text1', 'text2']}",
+        "example": {
+            "comments": [
+                "ramy tres bon et naturel",
+                "prix trop cher",
+            ]
+        },
     }
 
 

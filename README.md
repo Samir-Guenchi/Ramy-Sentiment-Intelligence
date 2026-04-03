@@ -16,7 +16,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.10+-blue?logo=python&logoColor=white" alt="Python"/>
   <img src="https://img.shields.io/badge/NLP-AraBERT-green?logo=huggingface&logoColor=white" alt="AraBERT"/>
-  <img src="https://img.shields.io/badge/Dashboard-Streamlit-red?logo=streamlit&logoColor=white" alt="Streamlit"/>
+  <img src="https://img.shields.io/badge/Dashboard-FastAPI%20%2B%20React-red" alt="FastAPI + React"/>
   <img src="https://img.shields.io/badge/Track-Industry-orange" alt="Industry Track"/>
   <img src="https://img.shields.io/badge/AI_EXPO-2026-purple" alt="AI EXPO 2026"/>
 </p>
@@ -38,6 +38,23 @@ A pipeline that:
 2. **Analyzes** sentiment using fine-tuned AraBERT models
 3. **Extracts** aspect-level opinions (taste, price, packaging, availability, quality, health)
 4. **Visualizes** insights through an interactive dashboard with geographic intelligence
+
+### 2026 Web Dashboard (Current)
+
+- Frontend: React + Recharts (served by FastAPI templates/static)
+- Backend: FastAPI (`webapp/main.py`)
+- Model APIs:
+  - `GET /api/model/status`
+  - `POST /api/model/predict` with JSON body:
+
+```json
+{
+  "comments": [
+    "ramy tres bon et naturel",
+    "prix trop cher"
+  ]
+}
+```
 
 ---
 
@@ -107,18 +124,40 @@ streamlit run dashboard/app.py
 
 ### Run the Professional Web Dashboard (No Streamlit)
 ```bash
-uvicorn webapp.main:app --reload --port 8080
+uvicorn webapp.main:app --host 127.0.0.1 --port 8081
+```
+
+Windows example (verified):
+```bash
+"C:\Users\Samir Guenchi\AppData\Local\Programs\Python\Python312\python.exe" -m uvicorn webapp.main:app --host 127.0.0.1 --port 8081
 ```
 
 ### Train with Competition Pipeline (CV Ensemble + Threshold Tuning)
 ```bash
 python -m src.models.train_sentiment \
+  --trainer competition \
   --train-file data/augmented/Ramy_data_train_target_1500.csv \
   --val-file data/augmented/Ramy_data_val_target_1500.csv \
   --output-dir models/competition \
   --metrics-output data/processed/competition_metrics.json \
   --cv-folds 5
 ```
+
+### Fine-Tune AraBERT on GPU (RTX 3050 Ti)
+```bash
+python -m src.models.train_sentiment \
+  --trainer transformer \
+  --data-dir data \
+  --output-dir models/checkpoints/arabert_ft \
+  --metrics-output data/processed/transformer_metrics.json \
+  --epochs 4 \
+  --batch-size 16 \
+  --learning-rate 2e-5
+```
+
+Notes:
+- If `--train-file` and `--val-file` are omitted, the script auto-resolves from `data/augmented`.
+- GPU is auto-detected (`cuda`) when available.
 
 Optional pseudo-labeling from unlabeled data:
 ```bash
