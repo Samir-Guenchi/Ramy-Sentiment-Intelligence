@@ -13,6 +13,27 @@ The system is served through a live enterprise dashboard featuring real-time inf
 
 ---
 
+# IMPORTANT - MODEL FILE NOT UPLOADED TO GITHUB
+
+## READ THIS BEFORE RUNNING INFERENCE
+
+The trained model weights are intentionally **not uploaded** to the repository (GitHub file size limits).
+
+To use prediction/inference, you must do the following:
+
+1. Run the training notebook completely:
+    - `h100-finetune-sentiment-fixed.ipynb`
+2. Get the exported zip file:
+    - `ramy_h100_finetuned_model.zip`
+3. Extract the zip.
+4. Use the extracted model folder for inference (pipeline/model path).
+5. If using the web app, set:
+    - `FINETUNED_MODEL_PATH=<path_to_extracted_model_folder_or_zip>`
+
+Without this step, model endpoints will not run correctly.
+
+---
+
 ## 🚨 The Problem
 
 Sentiment analysis in North Africa is unsolved at the dialect level:
