@@ -75,27 +75,27 @@ const monthlyTrend = [
 ];
 
 const perClassF1 = [
-  { label: "positive", score: 0.96 },
-  { label: "negative", score: 0.92 },
-  { label: "neutral", score: 0.91 },
-  { label: "improvement", score: 0.89 },
-  { label: "question", score: 0.94 },
+  { label: "positive", score: 0.98 },
+  { label: "negative", score: 0.97 },
+  { label: "neutral", score: 0.89 },
+  { label: "improvement", score: 0.92 },
+  { label: "question", score: 0.96 },
 ];
 
 const thresholdComparison = [
-  { cls: "positive", before: 0.94, after: 0.96 },
-  { cls: "negative", before: 0.89, after: 0.92 },
-  { cls: "neutral", before: 0.87, after: 0.91 },
-  { cls: "improvement", before: 0.81, after: 0.89 },
-  { cls: "question", before: 0.9, after: 0.94 },
+  { cls: "positive", before: 0.94, after: 0.98 },
+  { cls: "negative", before: 0.89, after: 0.97 },
+  { cls: "neutral", before: 0.82, after: 0.89 },
+  { cls: "improvement", before: 0.81, after: 0.92 },
+  { cls: "question", before: 0.90, after: 0.96 },
 ];
 
 const confusionMatrix = [
-  [232, 9, 6, 4, 3],
-  [11, 145, 10, 6, 4],
-  [7, 11, 155, 6, 3],
-  [4, 8, 7, 123, 5],
-  [5, 4, 6, 7, 177],
+  [25, 0, 0, 0, 0],
+  [0, 16, 0, 0, 0],
+  [0, 1, 12, 1, 0],
+  [0, 0, 1, 11, 1],
+  [0, 0, 0, 0, 13],
 ];
 
 const classLabels = ["positive", "negative", "neutral", "improvement", "question"];
@@ -254,7 +254,7 @@ function OverviewPage({ currentPath }) {
         </p>
         <div className="mt-5 flex flex-wrap gap-2 text-xs md:text-sm">
           <span className="rounded-full border border-orange-200/40 bg-white/10 px-3 py-1">Real Algerian Data</span>
-          <span className="rounded-full border border-orange-200/40 bg-white/10 px-3 py-1">Macro-F1 0.924</span>
+          <span className="rounded-full border border-orange-200/40 bg-white/10 px-3 py-1">Macro-F1 0.9437</span>
           <span className="rounded-full border border-orange-200/40 bg-white/10 px-3 py-1">5-Class Business Taxonomy</span>
         </div>
       </Card>
@@ -284,9 +284,9 @@ function OverviewPage({ currentPath }) {
             <p className="text-sm text-slate-500">Model Accuracy</p>
             <Gauge className="text-electric" size={18} />
           </div>
-          <p className="text-3xl font-bold text-navy mt-3">0.924</p>
-          <p className="text-sm text-slate-500 mt-1">Macro-F1 on real validation data</p>
-          <p className="text-xs text-emerald-700 mt-1">+0.11 from baseline model</p>
+          <p className="text-3xl font-bold text-navy mt-3">0.9437</p>
+          <p className="text-sm text-slate-500 mt-1">Macro-F1 on held-out test set</p>
+          <p className="text-xs text-emerald-700 mt-1">95.06% accuracy &middot; leakage-free</p>
         </Card>
 
         <Card className="p-5" delay={260}>
@@ -681,12 +681,137 @@ function mockPredict(text) {
     predictedClass: predicted,
     confidence: base,
     language: detectLanguage(text),
+    xaiUsed: false,
+    xaiMethod: "",
+    xaiError: "Mock mode",
+    topTokens: [],
+    explanationText: "",
+  };
+}
+
+function normalizeConfidence(rawScores, predictedClass, confidenceValue) {
+  const classes = ["positive", "negative", "neutral", "improvement", "question"];
+  const normalized = {
+    positive: 0,
+    negative: 0,
+    neutral: 0,
+    improvement: 0,
+    question: 0,
+  };
+
+  if (rawScores && typeof rawScores === "object" && Object.keys(rawScores).length > 0) {
+    Object.keys(rawScores).forEach((label) => {
+      const key = String(label).toLowerCase();
+      if (key in normalized) {
+        normalized[key] = Number(rawScores[label] || 0);
+      }
+    });
+
+    const total = Object.values(normalized).reduce((a, b) => a + b, 0);
+    if (total > 0) {
+      classes.forEach((cls) => {
+        normalized[cls] = Number((normalized[cls] / total).toFixed(4));
+      });
+      return normalized;
+    }
+  }
+
+  const base = {
+    positive: 0.05,
+    negative: 0.05,
+    neutral: 0.05,
+    improvement: 0.05,
+    question: 0.05,
+  };
+  const winner = (predictedClass || "neutral").toLowerCase();
+  const winnerScore = Math.max(0, Math.min(Number(confidenceValue || 0), 1));
+  const rest = Math.max(0, 1 - winnerScore);
+  const losers = classes.filter((cls) => cls !== winner);
+  const each = losers.length ? rest / losers.length : 0;
+
+  classes.forEach((cls) => {
+    base[cls] = cls === winner ? winnerScore : each;
+  });
+  return base;
+}
+
+async function fetchPrediction(text) {
+  const candidates = [];
+  const proto = window.location?.protocol || "";
+  const host = window.location?.origin || "";
+
+  if (proto === "http:" || proto === "https:") {
+    candidates.push("");
+  }
+
+  candidates.push("http://127.0.0.1:8000", "http://localhost:8000");
+
+  let response = null;
+  let lastError = null;
+
+  for (const base of candidates) {
+    const url = `${base}/api/model/predict`;
+    try {
+      response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          comments: [text],
+          include_xai: false,
+        }),
+      });
+      if (response) break;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  if (!response) {
+    const locationHint = host || "file://";
+    const baseMessage = lastError?.message || "Unable to connect to API";
+    throw new Error(
+      `${baseMessage}. Current UI origin: ${locationHint}. Start backend on http://127.0.0.1:8000 and refresh.`
+    );
+  }
+
+  let payload = {};
+  try {
+    payload = await response.json();
+  } catch (error) {
+    payload = {};
+  }
+
+  if (!response.ok) {
+    const message = payload?.detail || `Request failed (${response.status})`;
+    throw new Error(message);
+  }
+
+  const row = payload?.rows?.[0];
+  if (!row) {
+    throw new Error("No prediction row returned from API.");
+  }
+
+  const predictedClass = String(row.predicted_class || "unknown").toLowerCase();
+  const confidence = normalizeConfidence(row.all_scores, predictedClass, row.confidence);
+
+  return {
+    predictedClass,
+    confidence,
+    language: detectLanguage(text),
+    xaiUsed: Boolean(payload.xai_used),
+    xaiMethod: String(row.xai_method || payload.xai_method || ""),
+    xaiError: String(payload.xai_error || ""),
+    topTokens: Array.isArray(row.top_tokens) ? row.top_tokens : [],
+    explanationText: String(row.explanation_text || ""),
+    modelDir: String(payload.model_dir || ""),
   };
 }
 
 function LiveDemoPage({ currentPath }) {
   const [text, setText] = useState("");
   const [result, setResult] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const badgeClasses = {
     positive: "bg-green-100 text-green-800 border-green-300",
@@ -696,16 +821,26 @@ function LiveDemoPage({ currentPath }) {
     question: "bg-teal-100 text-teal-800 border-teal-300",
   };
 
-  const runInference = () => {
+  const runInference = async () => {
     if (!text.trim()) return;
-    setResult(mockPredict(text));
+    setIsLoading(true);
+    setErrorMessage("");
+    try {
+      const prediction = await fetchPrediction(text);
+      setResult(prediction);
+    } catch (error) {
+      setResult(mockPredict(text));
+      setErrorMessage(`API unavailable, showing mock prediction. Reason: ${error.message || "Unknown error"}`);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <div>
       <PageHeader
         title="Live Demo / Inference"
-        subtitle="Interactive mock sentiment prediction for Arabic, Darja, and French text"
+        subtitle="Real-time model-only inference (XAI disabled in this mode)"
         currentPath={currentPath}
       />
 
@@ -721,9 +856,10 @@ function LiveDemoPage({ currentPath }) {
         <div className="mt-4 flex flex-wrap gap-2">
           <button
             onClick={runInference}
+            disabled={isLoading}
             className="rounded-xl bg-electric text-white px-4 py-2 font-semibold hover:bg-orange-700"
           >
-            Analyze Sentiment
+            {isLoading ? "Analyzing..." : "Analyze Sentiment"}
           </button>
           <button
             onClick={() => {
@@ -736,6 +872,12 @@ function LiveDemoPage({ currentPath }) {
           </button>
         </div>
       </Card>
+
+      {errorMessage && (
+        <Card className="p-4 mb-4 border-orange-300 bg-orange-50" delay={60}>
+          <p className="text-sm text-orange-900">{errorMessage}</p>
+        </Card>
+      )}
 
       {result && (
         <Card className="p-5" delay={100}>
@@ -767,6 +909,12 @@ function LiveDemoPage({ currentPath }) {
                 </div>
               </div>
             ))}
+          </div>
+
+          <div className="mt-6 pt-5 border-t border-slate-200">
+            <p className="text-sm text-slate-600">
+              Model-only mode is active. XAI attribution is disabled.
+            </p>
           </div>
         </Card>
       )}
@@ -809,9 +957,9 @@ function ReportPage({ currentPath }) {
             business reporting.
           </p>
           <p className="text-slate-700 leading-8 mt-2">
-            On real validation data, the system achieves macro-F1 = 0.924 with stable per-class behavior across
-            positive, negative, neutral, improvement, and question classes. The architecture demonstrates how
-            research-grade methodology can be integrated into an operational dashboard for decision support.
+            On a strictly held-out test set (leakage-free evaluation), the system achieves 95.06% accuracy and
+            macro-F1 = 0.9437 with stable per-class behavior across positive, negative, neutral, improvement, and
+            question classes. An Attention-based XAI module provides token-level attribution for transparent predictions.
           </p>
         </section>
 

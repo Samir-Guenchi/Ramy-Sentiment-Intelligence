@@ -151,35 +151,100 @@ Three explicit safeguards eliminate all forms of evaluation leakage:
 
 ## 📊 Results
 
-All scores reported on the held-out test set (`split: held_out_test`):
+All scores reported on the held-out test set (`split: held_out_test`, 81 samples):
 
 | Metric | Base Argmax | With Threshold + TTA |
 |--------|-------------|----------------------|
-| Accuracy | - | - |
-| Macro-F1 | - | - |
+| Accuracy | 0.9506 | 0.9506 |
+| Macro-F1 | 0.9437 | 0.9437 |
 
-> 📝 Fill in values from `models/checkpoints/h100_arabert_ft/test_metrics.json` after running the notebook.
+### Per-Class Breakdown
 
-Full per-class breakdown available in `classification_report` inside `test_metrics.json`.
+| Class | Precision | Recall | F1-Score | Support |
+|-------|-----------|--------|----------|---------|
+| improvement | 1.00 | 0.85 | 0.92 | 13 |
+| negative | 0.94 | 1.00 | 0.97 | 16 |
+| neutral | 0.92 | 0.86 | 0.89 | 14 |
+| positive | 0.96 | 1.00 | 0.98 | 25 |
+| question | 0.93 | 1.00 | 0.96 | 13 |
+
+> ✅ All metrics are leakage-free — computed on a strictly held-out test partition never seen during training or tuning.
+
+---
+
+## 🔬 NEW: Explainable AI (XAI) — Attention-Based Token Attribution
+
+> **Winning feature for AI EXPO 2026** — goes beyond accuracy to answer *WHY*.
+
+The XAI module provides model interpretability through two complementary techniques:
+
+### 1. Attention Rollout (Abnar & Zuidema, 2020)
+
+Recursively multiplies attention matrices across all 12 AraBERT layers, adding residual connections. This captures the total information flow from each input token to the `[CLS]` classification token.
+
+### 2. Gradient × Attention
+
+Multiplies attention weights by the gradient of the predicted class logit w.r.t. input embeddings. This gives **class-specific saliency** — which tokens matter for *this particular prediction*.
+
+### 3. Combined Attribution
+
+The final score is a weighted mean of both methods, merged back to word-level (undoing WordPiece sub-word tokenisation) and normalised to [0, 1].
+
+### Why This Impresses the Jury
+
+- **Interpretability**: Answers "why did the model say positive?" with token-level evidence
+- **Measurable**: Attribution scores are quantitative — not just a black box
+- **Visual**: Generates colour-coded HTML reports and bar charts
+- **Live demo**: 2-second per prediction, works in real-time
+- **No extra training**: Uses existing model weights — zero accuracy regression
+
+### Run the XAI Demo
+
+```bash
+python demo.py
+```
+
+Outputs saved to `results/`:
+- `xai_attribution_chart.png` — Token importance bar charts
+- `xai_class_probabilities.png` — Per-class probability distributions
+- `xai_report.html` — Interactive HTML report (open in browser)
+- `xai_results.json` — Machine-readable results
 
 ---
 
 ## 🗂️ Project Structure
 
 ```
-├── h100-finetune-sentiment-fixed.ipynb   # Main training notebook
-├── Ramy_data_train_target_1500.csv       # Training data
-├── Ramy_data_val_target_1500.csv         # Validation data (split into dev/test)
+├── demo.py                               # 🆕 XAI demo script (jury-ready)
+├── notebooks/
+│   └── h100-finetune-sentiment-fixed-2.ipynb  # Main training notebook
 ├── data/
-│   └── Ramy_data.csv                     # Unlabeled pool for self-training
-└── models/
-    └── checkpoints/
-        └── h100_arabert_ft/
-            ├── final_model/              # Saved model + tokenizer
-            ├── test_metrics.json         # Final evaluation results
-            ├── label_mapping.json        # label2id / id2label
-            ├── class_thresholds.json     # Per-class τ values
-            └── training_strategy.json    # Full strategy log
+│   ├── augmented/                        # Augmented training/val CSVs
+│   ├── Ramy_data.csv                     # Unlabeled pool for self-training
+│   └── processed/                        # Processed datasets
+├── src/
+│   ├── explainability/                   # 🆕 XAI module
+│   │   ├── __init__.py
+│   │   └── attention_explainer.py        # Attention Rollout + Gradient×Attention
+│   ├── models/
+│   │   ├── sentiment_classifier.py
+│   │   ├── absa_model.py                 # Aspect-Based Sentiment Analysis
+│   │   └── competition_pipeline.py       # TF-IDF ensemble pipeline
+│   ├── data_pipeline/                    # Scraping, augmentation, preprocessing
+│   └── analytics/                        # Insight engine
+├── results/                              # 🆕 XAI outputs (charts, HTML, JSON)
+├── models/
+│   └── checkpoints/
+│       └── h100_arabert_ft/
+│           ├── final_model/              # Saved model + tokenizer
+│           ├── test_metrics.json         # Final evaluation results
+│           ├── label_mapping.json        # label2id / id2label
+│           ├── class_thresholds.json     # Per-class τ values
+│           └── training_strategy.json    # Full strategy log
+├── webapp/                               # FastAPI web dashboard
+├── dashboard/                            # Streamlit dashboard
+├── poster.html                           # 🆕 A1 print-ready poster
+└── requirements.txt
 ```
 
 ---

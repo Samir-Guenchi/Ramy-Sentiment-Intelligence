@@ -1,8 +1,8 @@
 body {
   background:
-    radial-gradient(circle at 8% 0%, rgba(251, 146, 60, 0.2), transparent 34%),
-    radial-gradient(circle at 95% 100%, rgba(194, 65, 12, 0.16), transparent 30%),
-    #fff7ed;
+    radial-gradient(circle at 8% 0%, rgba(251, 146, 60, 0.18), transparent 34%),
+    radial-gradient(circle at 95% 100%, rgba(194, 65, 12, 0.12), transparent 30%),
+    #fffaf5;
   color: #0f172a;
   overflow-y: scroll;
 }
@@ -12,43 +12,42 @@ body::before {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  opacity: 0.2;
-  background-image: radial-gradient(rgba(124, 45, 18, 0.13) 0.4px, transparent 0.4px);
+  opacity: 0.12;
+  background-image: radial-gradient(rgba(124, 45, 18, 0.1) 0.4px, transparent 0.4px);
   background-size: 3px 3px;
 }
 
 @media print {
-  body {
-    background: #fff !important;
-  }
-
-  .no-print {
-    display: none !important;
-  }
-
-  .print-report {
-    display: block !important;
-    color: #0f172a !important;
-  }
-
-  .print-report h1,
-  .print-report h2,
-  .print-report h3 {
-    color: #0f172a !important;
-  }
-
-  .print-report section {
-    break-inside: avoid;
-    page-break-inside: avoid;
-  }
+  body { background: #fff !important; }
+  .no-print { display: none !important; }
+  .print-report { display: block !important; color: #0f172a !important; }
+  .print-report h1, .print-report h2, .print-report h3 { color: #0f172a !important; }
+  .print-report section { break-inside: avoid; page-break-inside: avoid; }
 }
+
+/* ── Smooth animations ────────────────────────── */
 
 .fade-in-card {
-  animation: fadeInUp 0.45s ease both;
+  animation: fadeInUp 0.5s cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
 
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── Card effects ─────────────────────────────── */
+
 .card-elevated {
-  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+  transition: transform 220ms cubic-bezier(0.22, 0.61, 0.36, 1),
+              box-shadow 220ms cubic-bezier(0.22, 0.61, 0.36, 1),
+              border-color 220ms ease;
+}
+
+.card-elevated:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 20px 40px rgba(124, 45, 18, 0.12), 0 4px 12px rgba(0,0,0,0.06);
+  border-color: rgba(251, 146, 60, 0.35);
 }
 
 .card-paper {
@@ -61,43 +60,41 @@ body::before {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.68), transparent 28%);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.7), transparent 25%);
+  border-radius: inherit;
 }
 
-.card-elevated:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 18px 34px rgba(124, 45, 18, 0.14);
-  border-color: rgba(251, 146, 60, 0.4);
-}
+/* ── Sidebar ──────────────────────────────────── */
 
 .sidebar-shell {
   background:
-    radial-gradient(circle at 0% 0%, rgba(251, 146, 60, 0.22), transparent 38%),
-    radial-gradient(circle at 100% 100%, rgba(120, 53, 15, 0.34), transparent 44%),
+    radial-gradient(circle at 0% 0%, rgba(251, 146, 60, 0.18), transparent 38%),
+    radial-gradient(circle at 100% 100%, rgba(120, 53, 15, 0.3), transparent 44%),
     linear-gradient(180deg, #8a2f10 0%, #7c2d12 52%, #6f280f 100%);
-  box-shadow: 0 22px 46px rgba(124, 45, 18, 0.26);
-  border-right: 1px solid rgba(251, 146, 60, 0.25);
+  box-shadow: 4px 0 24px rgba(124, 45, 18, 0.2);
+  border-right: 1px solid rgba(251, 146, 60, 0.2);
   overflow-y: auto;
 }
 
-.sidebar-shell::-webkit-scrollbar {
-  width: 8px;
-}
-
+.sidebar-shell::-webkit-scrollbar { width: 6px; }
 .sidebar-shell::-webkit-scrollbar-thumb {
-  background: rgba(251, 146, 60, 0.35);
+  background: rgba(251, 146, 60, 0.3);
   border-radius: 999px;
 }
-
 .sidebar-shell::-webkit-scrollbar-track {
-  background: rgba(124, 45, 18, 0.2);
+  background: rgba(124, 45, 18, 0.15);
 }
+
+/* ── Top bar ──────────────────────────────────── */
 
 .topbar-shell {
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.95), rgba(255, 247, 237, 0.95));
-  backdrop-filter: blur(6px);
-  box-shadow: 0 8px 22px rgba(124, 45, 18, 0.08);
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.97), rgba(255, 247, 237, 0.97));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 4px 16px rgba(124, 45, 18, 0.06);
 }
+
+/* ── Hero section ─────────────────────────────── */
 
 .hero-glow {
   position: relative;
@@ -108,35 +105,59 @@ body::before {
   content: "";
   position: absolute;
   inset: -20% auto auto -10%;
-  width: 240px;
-  height: 240px;
+  width: 280px;
+  height: 280px;
   border-radius: 999px;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.24), transparent 64%);
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.2), transparent 64%);
   pointer-events: none;
+  animation: pulse-glow 4s ease-in-out infinite alternate;
 }
 
 .hero-glow::before {
   content: "";
   position: absolute;
   inset: auto -8% -40% auto;
-  width: 260px;
-  height: 260px;
+  width: 300px;
+  height: 300px;
   border-radius: 999px;
-  background: radial-gradient(circle, rgba(251, 146, 60, 0.45), transparent 62%);
+  background: radial-gradient(circle, rgba(251, 146, 60, 0.4), transparent 62%);
   pointer-events: none;
+  animation: pulse-glow 5s ease-in-out infinite alternate-reverse;
 }
 
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+@keyframes pulse-glow {
+  from { opacity: 0.4; transform: scale(0.9); }
+  to   { opacity: 1; transform: scale(1.1); }
 }
 
 .gradient-hero {
-  background-image: radial-gradient(circle at 5% 0%, rgba(249, 115, 22, 0.34), transparent 42%), radial-gradient(circle at 95% 100%, rgba(194, 65, 12, 0.32), transparent 44%);
+  background-image:
+    radial-gradient(circle at 5% 0%, rgba(249, 115, 22, 0.3), transparent 42%),
+    radial-gradient(circle at 95% 100%, rgba(194, 65, 12, 0.28), transparent 44%);
+}
+
+/* ── Selection & scrollbar ────────────────────── */
+
+::selection {
+  background: rgba(249, 115, 22, 0.2);
+  color: #7c2d12;
+}
+
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-thumb {
+  background: rgba(124, 45, 18, 0.15);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(124, 45, 18, 0.25);
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ── Focus ring ───────────────────────────────── */
+
+*:focus-visible {
+  outline: 2px solid rgba(249, 115, 22, 0.5);
+  outline-offset: 2px;
 }

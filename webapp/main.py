@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from fastapi import Body, FastAPI, HTTPException, Query  # type: ignore[reportMissingImports]
+from fastapi.middleware.cors import CORSMiddleware  # type: ignore[reportMissingImports]
 from fastapi.responses import HTMLResponse, Response  # type: ignore[reportMissingImports]
 from fastapi.staticfiles import StaticFiles  # type: ignore[reportMissingImports]
 from fastapi.templating import Jinja2Templates  # type: ignore[reportMissingImports]
@@ -27,6 +28,12 @@ _MODEL_CACHE: Dict[str, Any] = {
     "pipe": None,
     "model_dir": "",
 }
+_XAI_CACHE: Dict[str, Any] = {
+    "ready": False,
+    "error": "",
+    "explainer": None,
+    "model_dir": "",
+}
 
 
 CATALOG = {
@@ -35,6 +42,136 @@ CATALOG = {
     "Boisson au lait": ["milky : 1l", "milky : 20cl", "milky : 300ml", "milky : 25cl"],
     "Produits laitiers": ["lais", "yupty", "raib et lben", "cherebt", "ramy up duo"],
 }
+
+TARGET_CLASSES = ["positive", "negative", "neutral", "improvement", "question"]
+
+QUESTION_TOKENS = {
+    "wach", "wesh", "wash", "win", "where", "ou", "pourquoi", "why", "comment", "how",
+    "when", "what", "quoi", "fin", "kayen", "kayn", "علاه", "كيف", "فين", "وين", "متى", "وش",
+}
+
+NEGATION_TOKENS = {
+    "machi", "machi", "moch", "مش", "ماشي", "موش", "pas", "not", "jamais",
+}
+
+POSITIVE_TOKENS = {
+    "bnin", "bnina", "bninaa", "bon", "good", "excellent", "super", "top", "مليح", "بنين", "لذيذ",
+}
+
+NEGATIVE_TOKENS = {
+    "khayeb", "khayba", "mauvais", "bad", "ghali", "cher", "trop", "رديء", "سيء", "خايب", "غالي",
+}
+
+
+def _extract_text_tokens(text: str) -> List[str]:
+    return re.findall(r"[a-zA-ZÀ-ÿ0-9_]+|[\u0600-\u06FF]+", text.lower())
+
+
+def _normalize_score_map(
+    predicted_class: str,
+    confidence: float,
+    all_scores: Optional[Dict[str, Any]] = None,
+) -> Dict[str, float]:
+    scores = {cls: 0.0 for cls in TARGET_CLASSES}
+
+    if all_scores:
+        for k, v in all_scores.items():
+            key = str(k).lower()
+            if key in scores:
+                try:
+                    scores[key] = max(0.0, float(v))
+                except (TypeError, ValueError):
+                    scores[key] = 0.0
+
+    total = sum(scores.values())
+    pred = str(predicted_class or "").lower()
+    conf = max(0.0, min(float(confidence or 0.0), 1.0))
+
+    if total <= 0:
+        if pred not in scores:
+            pred = "neutral"
+        remainder = max(0.0, 1.0 - conf)
+        spread = remainder / (len(TARGET_CLASSES) - 1)
+        for cls in TARGET_CLASSES:
+            scores[cls] = conf if cls == pred else spread
+        total = sum(scores.values())
+
+    if total > 0:
+        for cls in TARGET_CLASSES:
+            scores[cls] = scores[cls] / total
+
+    return scores
+
+
+def _boost_class(scores: Dict[str, float], target: str, floor: float) -> Dict[str, float]:
+    floor = max(0.0, min(floor, 1.0))
+    cur = float(scores.get(target, 0.0))
+    if cur >= floor:
+        total = sum(scores.values())
+        if total > 0:
+            return {k: v / total for k, v in scores.items()}
+        return scores
+
+    remain = max(0.0, 1.0 - floor)
+    other_total = max(1e-12, sum(v for k, v in scores.items() if k != target))
+
+    boosted = {}
+    for k, v in scores.items():
+        if k == target:
+            boosted[k] = floor
+        else:
+            boosted[k] = remain * (v / other_total)
+
+    total = sum(boosted.values())
+    return {k: v / total for k, v in boosted.items()}
+
+
+def _apply_rule_calibration(
+    text: str,
+    predicted_class: str,
+    confidence: float,
+    all_scores: Optional[Dict[str, Any]] = None,
+) -> Tuple[str, float, Dict[str, float], List[str]]:
+    """
+    Apply lightweight lexical calibration for Darija/French-Latin edge cases.
+
+    The fine-tuned model can overpredict positive on transliterated short text
+    such as "machi bnin". These rules correct obvious polarity/question cues.
+    """
+    tokens = _extract_text_tokens(text)
+    token_set = set(tokens)
+    raw = (text or "").lower()
+
+    has_qmark = "?" in raw or "؟" in raw
+    has_question_token = any(t in token_set for t in QUESTION_TOKENS)
+    explicit_question = has_qmark or has_question_token
+
+    explicit_negative = any(t in token_set for t in NEGATIVE_TOKENS)
+
+    negated_positive = False
+    for i, tok in enumerate(tokens):
+        if tok in NEGATION_TOKENS:
+            window = tokens[i + 1:i + 4]
+            if any(w in POSITIVE_TOKENS for w in window):
+                negated_positive = True
+                break
+
+    scores = _normalize_score_map(predicted_class, confidence, all_scores)
+    applied_rules: List[str] = []
+
+    if negated_positive:
+        scores = _boost_class(scores, "negative", 0.80)
+        applied_rules.append("negation_over_positive_pattern")
+    elif explicit_negative:
+        scores = _boost_class(scores, "negative", 0.70)
+        applied_rules.append("explicit_negative_lexicon")
+    elif explicit_question:
+        scores = _boost_class(scores, "question", 0.70)
+        applied_rules.append("question_cue")
+
+    calibrated_class = max(scores, key=scores.get)
+    calibrated_conf = float(scores[calibrated_class])
+    return calibrated_class, calibrated_conf, scores, applied_rules
 
 
 def _resolve_model_source_path() -> Path:
@@ -47,6 +184,7 @@ def _resolve_model_source_path() -> Path:
     defaults = [
         BASE_DIR / "ramy_h100_finetuned_model.zip",
         BASE_DIR / "models" / "checkpoints" / "h100_arabert_ft" / "final_model",
+        BASE_DIR / "models" / "runtime" / "ramy_h100_finetuned_model",
     ]
     for candidate in defaults:
         if candidate.exists():
@@ -125,6 +263,45 @@ def _load_prediction_pipeline() -> Any:
         _MODEL_CACHE["error"] = str(exc)
         _MODEL_CACHE["pipe"] = None
         raise
+
+
+def _load_xai_explainer() -> Any:
+    if _XAI_CACHE["ready"] and _XAI_CACHE["explainer"] is not None:
+        return _XAI_CACHE["explainer"]
+
+    try:
+        source = _resolve_model_source_path()
+        if not source.exists():
+            raise FileNotFoundError(
+                f"Fine-tuned model not found at: {source}. "
+                "Set FINETUNED_MODEL_PATH to your model folder or zip."
+            )
+
+        model_dir = _resolve_runtime_model_dir(source)
+
+        from src.explainability.attention_explainer import AttentionExplainer
+
+        explainer = AttentionExplainer(str(model_dir))
+        _XAI_CACHE["ready"] = True
+        _XAI_CACHE["error"] = ""
+        _XAI_CACHE["explainer"] = explainer
+        _XAI_CACHE["model_dir"] = str(model_dir)
+        return explainer
+    except Exception as exc:
+        _XAI_CACHE["ready"] = False
+        _XAI_CACHE["error"] = str(exc)
+        _XAI_CACHE["explainer"] = None
+        raise
+
+
+def _to_bool(value: Any, default: bool = False) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value != 0
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "y", "on"}
+    return default
 
 
 def _resolve_data_path() -> Path:
@@ -407,6 +584,13 @@ def _aspects(reviews: List[Dict[str, Any]]) -> Dict[str, Any]:
 
 
 app = FastAPI(title="Ramy Enterprise Dashboard", version="3.0.0")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
@@ -433,12 +617,16 @@ def api_model_status() -> Dict[str, Any]:
             "ready": True,
             "model_dir": _MODEL_CACHE.get("model_dir", ""),
             "error": "",
+            "xai_ready": _XAI_CACHE.get("ready", False),
+            "xai_error": _XAI_CACHE.get("error", ""),
         }
     except Exception as exc:
         return {
             "ready": False,
             "model_dir": _MODEL_CACHE.get("model_dir", ""),
             "error": str(exc),
+            "xai_ready": _XAI_CACHE.get("ready", False),
+            "xai_error": _XAI_CACHE.get("error", ""),
         }
 
 
@@ -458,6 +646,78 @@ def api_model_predict(payload: Dict[str, Any] = Body(default={})):  # type: igno
     if len(comments) > 1000:
         raise HTTPException(status_code=400, detail="Too many comments. Max allowed is 1000.")
 
+    include_xai = _to_bool(payload.get("include_xai", False), default=False)
+    xai_method = str(payload.get("xai_method", "combined") or "combined")
+    xai_top_k_raw = payload.get("xai_top_k", 8)
+    try:
+        xai_top_k = max(1, min(int(xai_top_k_raw), 20))
+    except (TypeError, ValueError):
+        xai_top_k = 8
+
+    use_xai = include_xai and len(comments) <= 20
+    xai_error = ""
+
+    if use_xai:
+        try:
+            explainer = _load_xai_explainer()
+            rows = []
+            for text in comments:
+                explanation = explainer.explain(text, method=xai_method, top_k=xai_top_k)
+                raw_pred = str(explanation.get("predicted_class", "unknown")).lower()
+                raw_conf = float(explanation.get("confidence", 0.0))
+                raw_scores = explanation.get("all_scores", {})
+                cal_pred, cal_conf, cal_scores, cal_rules = _apply_rule_calibration(
+                    text=text,
+                    predicted_class=raw_pred,
+                    confidence=raw_conf,
+                    all_scores=raw_scores,
+                )
+
+                explanation_text = explanation.get("explanation_text", "")
+                if cal_rules and cal_pred != raw_pred:
+                    top_tokens = explanation.get("top_tokens", [])
+                    top_preview = ", ".join(
+                        [
+                            f"{str(tok[0])} ({float(tok[1]):.0%})"
+                            for tok in top_tokens[:3]
+                            if isinstance(tok, (list, tuple)) and len(tok) >= 2
+                        ]
+                    )
+                    explanation_text = (
+                        f"Final prediction: {cal_pred.upper()} ({cal_conf:.0%}) after calibration. "
+                        f"Base model output was {raw_pred.upper()} ({raw_conf:.0%}). "
+                        f"Applied rule(s): {', '.join(cal_rules)}. "
+                        f"Top relative tokens: {top_preview if top_preview else 'n/a'}."
+                    ).strip()
+
+                rows.append(
+                    {
+                        "text": text,
+                        "predicted_class": cal_pred,
+                        "confidence": cal_conf,
+                        "all_scores": cal_scores,
+                        "top_tokens": explanation.get("top_tokens", []),
+                        "word_attributions": explanation.get("word_attributions", []),
+                        "explanation_text": explanation_text,
+                        "xai_method": explanation.get("method", xai_method),
+                        "calibration_rules": cal_rules,
+                    }
+                )
+
+            distribution = Counter(r["predicted_class"] for r in rows)
+            return {
+                "total": len(rows),
+                "rows": rows,
+                "distribution": dict(distribution),
+                "model_dir": _MODEL_CACHE.get("model_dir", "") or _XAI_CACHE.get("model_dir", ""),
+                "xai_used": True,
+                "xai_method": xai_method,
+                "xai_error": "",
+            }
+        except Exception as exc:
+            xai_error = str(exc)
+            use_xai = False
+
     try:
         clf = _load_prediction_pipeline()
         raw_preds = clf(comments, truncation=True, max_length=256)
@@ -466,11 +726,21 @@ def api_model_predict(payload: Dict[str, Any] = Body(default={})):  # type: igno
 
     rows = []
     for text, pred in zip(comments, raw_preds):
+        raw_pred = str(pred.get("label", "unknown")).lower()
+        raw_conf = float(pred.get("score", 0.0))
+        cal_pred, cal_conf, cal_scores, cal_rules = _apply_rule_calibration(
+            text=text,
+            predicted_class=raw_pred,
+            confidence=raw_conf,
+            all_scores=None,
+        )
         rows.append(
             {
                 "text": text,
-                "predicted_class": str(pred.get("label", "unknown")).lower(),
-                "confidence": float(pred.get("score", 0.0)),
+                "predicted_class": cal_pred,
+                "confidence": cal_conf,
+                "all_scores": cal_scores,
+                "calibration_rules": cal_rules,
             }
         )
 
@@ -481,6 +751,9 @@ def api_model_predict(payload: Dict[str, Any] = Body(default={})):  # type: igno
         "rows": rows,
         "distribution": dict(distribution),
         "model_dir": _MODEL_CACHE.get("model_dir", ""),
+        "xai_used": False,
+        "xai_method": "",
+        "xai_error": xai_error,
     }
 
 

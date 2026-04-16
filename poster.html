@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<title>AI EXPO 2026 — Ramy Sentiment Intelligence</title>
+<style>
+/* ================================================================
+   A2 Portrait Academic Poster  —  420 mm x 594 mm
+   AI EXPO 2026 — Ramy Sentiment Intelligence
+   Color scheme: Ramy Brand Red (#D42027) compatible
+   Fully self-contained — zero external dependencies
+   ================================================================ */
+
+@page { size: 420mm 594mm; margin: 0; }
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    width: 420mm;
+    height: 594mm;
+    margin: 0 auto;
+    background: #ffffff;
+    color: #2d2d2d;
+    display: flex;
+    flex-direction: column;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+/* ── COLOR PALETTE (Ramy Brand) ─────────────────────────── */
+/* Primary:   #D42027 (Ramy Red)
+   Dark:      #8B1A1A (Deep Red)
+   Darker:    #5C0A0A (Darkest Red)
+   Light:     #FFF5F5 (Warm White)
+   Accent:    #FF6B6B (Soft Red)
+   Surface:   #FAF0F0 (Blush)
+   Text:      #2d2d2d (Charcoal)
+   Muted:     #6b6b6b (Gray)
+*/
+
+/* ── HEADER ──────────────────────────────────────────── */
+
+.hdr {
+    background: linear-gradient(160deg, #5C0A0A 0%, #8B1A1A 40%, #D42027 100%);
+    color: #fff;
+    padding: 9mm 14mm 8mm;
+    text-align: center;
+    flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+}
+
+/* subtle geometric decoration */
+.hdr::before {
+    content: '';
+    position: absolute;
+    top: -40mm;
+    right: -30mm;
+    width: 120mm;
+    height: 120mm;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 70%);
+    pointer-events: none;
+}
+.hdr::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2.5mm;
+    background: linear-gradient(90deg, #fff, rgba(255,255,255,0.6), #fff, rgba(255,255,255,0.6), #fff);
+}
+
+.hdr-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: relative;
+    z-index: 1;
+}
+
+.logo {
+    height: 32mm;
+    width: auto;
+    object-fit: contain;
+}
+.logo.univ {
+    background: #fff;
+    border-radius: 50%;
+    padding: 1.5mm;
+    height: 30mm;
+    width: 30mm;
+}
+
+.hdr-center { flex: 1; padding: 0 6mm; }
+
+.title {
+    font-size: 72pt;
+    font-weight: 800;
+    line-height: 1.05;
+    letter-spacing: -1pt;
+    margin-bottom: 4mm;
+}
+.accent { color: #FFD4D4; }
+
+.sub {
+    font-size: 26pt;
+    font-weight: 300;
+    color: rgba(255,255,255,0.75);
+    letter-spacing: 3pt;
+    text-transform: uppercase;
+    margin-bottom: 6mm;
+}
+
+.badge {
+    display: inline-block;
+    font-size: 22pt;
+    font-weight: 600;
+    color: #fff;
+    padding: 3mm 10mm;
+    border: 1pt solid rgba(255,255,255,0.4);
+    border-radius: 2mm;
+    background: rgba(255,255,255,0.1);
+}
+
+/* ── BODY ────────────────────────────────────────────── */
+
+.body {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10mm;
+    padding: 10mm 15mm 10mm;
+    min-height: 0;
+}
+.col { display: flex; flex-direction: column; gap: 6mm; }
+
+/* ── SECTIONS ────────────────────────────────────────── */
+
+.s {
+    background: #FFF8F8;
+    border: 0.5pt solid #f0d0d0;
+    border-radius: 4mm;
+    padding: 8mm 10mm 8mm;
+    break-inside: avoid;
+}
+
+.sh {
+    font-size: 32pt;
+    font-weight: 700;
+    color: #5C0A0A;
+    margin-bottom: 4mm;
+    padding-bottom: 2mm;
+    border-bottom: 1.5pt solid #D42027;
+    display: flex;
+    align-items: center;
+    gap: 3mm;
+}
+
+.sn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 12mm;
+    height: 12mm;
+    background: linear-gradient(135deg, #D42027, #8B1A1A);
+    color: #fff;
+    font-size: 18pt;
+    font-weight: 800;
+    border-radius: 2.5mm;
+    flex-shrink: 0;
+}
+
+.sb {
+    font-size: 20pt;
+    line-height: 1.45;
+    color: #3d3d3d;
+    text-align: justify;
+    hyphens: auto;
+}
+.sb p { margin-bottom: 2.5mm; }
+.sb ul { padding-left: 6mm; margin: 2mm 0; }
+.sb li { margin-bottom: 2mm; font-size: 19pt; line-height: 1.4; }
+.sb li::marker { color: #D42027; font-weight: 700; }
+
+.b { font-weight: 700; }
+
+/* ── TAGS ────────────────────────────────────────────── */
+.t {
+    display: inline-block;
+    padding: 1.5mm 4mm;
+    border-radius: 1.5mm;
+    font-size: 16pt;
+    font-weight: 600;
+    margin: 0.5mm;
+    vertical-align: middle;
+}
+.tp { background: #d1fae5; color: #065f46; }
+.tn { background: #fee2e2; color: #991b1b; }
+.tu { background: #fef3c7; color: #92400e; }
+.ti { background: #dbeafe; color: #1e40af; }
+.tq { background: #ede9fe; color: #5b21b6; }
+.tt { background: #D42027; color: #fff; }
+
+/* ── PIPELINE ────────────────────────────────────────── */
+.pipe {
+    background: #fff;
+    border: 0.5pt solid #f0d0d0;
+    border-radius: 2mm;
+    padding: 2.5mm 3mm;
+    margin: 2mm 0;
+}
+.pr { display: flex; align-items: center; gap: 2mm; margin-bottom: 2mm; }
+.pr:last-child { margin-bottom: 0; }
+.pb {
+    flex: 1;
+    text-align: center;
+    padding: 3mm 2mm;
+    border-radius: 2mm;
+    font-size: 16pt;
+    font-weight: 600;
+    line-height: 1.25;
+}
+.pb small { font-weight: 400; font-size: 14pt; display: block; margin-top: 0.5mm; opacity: 0.85; }
+.pd { background: #5C0A0A; color: #fff; }
+.pg { background: linear-gradient(135deg, #D42027, #B91C22); color: #fff; }
+.pe { background: #166534; color: #fff; }
+.px { background: #7c3aed; color: #fff; border: 0.8pt solid #D42027; }
+/* CSS block arrow — replaces text → */
+.pa {
+    font-size: 0;
+    width: 8mm;
+    height: 3mm;
+    background: #cca0a0;
+    border-radius: 1mm;
+    flex-shrink: 0;
+    position: relative;
+}
+.pa::after {
+    content: '';
+    position: absolute;
+    right: -2mm;
+    top: -1.5mm;
+    border-top: 3mm solid transparent;
+    border-bottom: 3mm solid transparent;
+    border-left: 4mm solid #cca0a0;
+}
+
+/* ── METRICS ─────────────────────────────────────────── */
+.mg { display: grid; grid-template-columns: 1fr 1fr; gap: 3mm; margin: 3mm 0; }
+.mc {
+    background: linear-gradient(135deg, #8B1A1A, #D42027);
+    color: #fff;
+    padding: 5mm 3mm;
+    border-radius: 3mm;
+    text-align: center;
+}
+.mv { display: block; font-size: 40pt; font-weight: 800; color: #fff; line-height: 1.1; }
+.ml { font-size: 16pt; color: rgba(255,255,255,0.85); margin-top: 1mm; }
+
+/* ── TABLES ──────────────────────────────────────────── */
+.tb {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 3mm 0;
+    font-size: 18pt;
+}
+.tb th {
+    background: #D42027;
+    color: #fff;
+    padding: 3mm;
+    font-size: 18pt;
+    font-weight: 600;
+    text-align: center;
+}
+.tb td {
+    padding: 2.5mm;
+    text-align: center;
+    border-bottom: 0.3pt solid #f0d0d0;
+}
+.tb tr:nth-child(even) { background: #FFF5F5; }
+.tb .rh { font-weight: 700; color: #5C0A0A; text-align: left; }
+
+/* confusion matrix — heatmap style */
+.cm { font-size: 16pt; }
+.cm th, .cm td { padding: 2mm 2.5mm; border: 0.3pt solid #e8c0c0; font-size: 16pt; }
+.cap { font-size: 16pt; color: #8b6b6b; font-style: italic; text-align: center; margin-top: 1.5mm; }
+
+/* ── XAI BOX ─────────────────────────────────────────── */
+.xb {
+    background: linear-gradient(135deg, #FFF5F5, #FFE8E8);
+    border: 0.8pt solid #f0b0b0;
+    border-left: 4pt solid #D42027;
+    border-radius: 3mm;
+    padding: 5mm 6mm;
+    margin: 3mm 0;
+}
+.xb .xt { color: #8B1A1A; font-weight: 700; font-size: 20pt; margin-bottom: 2mm; }
+.xb p { font-size: 18pt; line-height: 1.4; color: #5C0A0A; }
+
+/* ── BUSINESS VALUE BOX ──────────────────────────────── */
+.bv {
+    background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+    border: 0.8pt solid #86efac;
+    border-left: 4pt solid #166534;
+    border-radius: 3mm;
+    padding: 5mm 6mm;
+    margin: 3mm 0;
+}
+.bv .bvt { color: #166534; font-weight: 700; font-size: 20pt; margin-bottom: 2mm; }
+.bv p { font-size: 18pt; line-height: 1.4; color: #14532d; }
+
+/* ── TEAM ────────────────────────────────────────────── */
+.team {
+    background: #5C0A0A;
+    color: #fff;
+    padding: 6mm 15mm;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 14mm;
+    flex-shrink: 0;
+    border-top: 1pt solid #D42027;
+}
+.tm { text-align: center; }
+.tn2 { font-size: 24pt; font-weight: 700; }
+.ta { font-size: 18pt; color: #FFD4D4; font-weight: 500; margin-top: 1mm; }
+
+/* ── FOOTER ──────────────────────────────────────────── */
+.ftr {
+    background: linear-gradient(135deg, #5C0A0A, #8B1A1A);
+    padding: 5mm 15mm;
+    text-align: center;
+    flex-shrink: 0;
+    border-top: 1.8mm solid #D42027;
+}
+.fl { font-size: 24pt; font-weight: 600; color: #FFD4D4; letter-spacing: 2.5pt; text-transform: uppercase; margin-bottom: 2mm; }
+.fr { height: 18mm; width: auto; object-fit: contain; }
+
+/* PRINT */
+@media print {
+    body { width: 420mm; height: 594mm; }
+    .hdr, .team, .ftr, .mc, .tb th, .cm th, .ch, .pb, .t, .sn, .xb, .bv {
+        -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    }
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="hdr-row">
+    <img class="logo univ" src="LogoUnivOriginal.png" alt="University of Blida 1">
+    <div class="hdr-center">
+      <div class="title"><span class="accent">AI EXPO 2026</span><br>at Blida University</div>
+      <div class="sub">Artificial Intelligence Exposition &middot; April 2026</div>
+      <div class="badge">Ramy Sentiment Intelligence &mdash; Understanding Customer Voice with AI</div>
+    </div>
+    <img class="logo" src="Ramylogo.png" alt="Ramy">
+  </div>
+</div>
+
+<!-- BODY -->
+<div class="body">
+
+  <!-- LEFT -->
+  <div class="col">
+
+    <div class="s">
+      <div class="sh"><span class="sn">1</span> What We Built</div>
+      <div class="sb">
+        <p><span class="b">Ramy Sentiment Intelligence</span> is an AI-powered system that automatically reads and understands what customers say about Ramy products. It classifies every review into one of five categories:</p>
+        <p>
+        <span class="t tp">Positive</span> <span class="t tn">Negative</span> <span class="t tu">Neutral</span> <span class="t ti">Suggestion</span> <span class="t tq">Question</span>
+        </p>
+        <p>Built specifically for the way Algerians actually write &mdash; mixing <span class="b">Arabic</span>, <span class="b">Darija</span>, and <span class="b">French</span> in a single sentence &mdash; it achieves <span class="b">95.06% accuracy</span> with full transparency into <em>why</em> each decision was made.</p>
+      </div>
+    </div>
+
+    <div class="s">
+      <div class="sh"><span class="sn">2</span> The Challenge</div>
+      <div class="sb">
+        <p><span class="b">Why is this hard?</span> Traditional AI tools fail on Algerian text because customers mix three languages freely. Imagine a review like: <em>"عصير Ramy بنين but الكارتون mauvais"</em> &mdash; no off-the-shelf tool handles this reliably.</p>
+        <p><span class="b">Our goals:</span></p>
+        <ul>
+          <li>Build a <span class="b">5-category classifier</span> that truly works on real Algerian consumer voices</li>
+          <li>Guarantee <span class="b">honest metrics</span> &mdash; no inflated scores from data leakage</li>
+          <li>Show <span class="b">why</span> the AI made each decision (Explainable AI)</li>
+          <li>Deliver results through a <span class="b">live, real-time dashboard</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="s">
+      <div class="sh"><span class="sn">3</span> How It Works</div>
+      <div class="sb">
+        <p><span class="b">End-to-End Pipeline:</span></p>
+        <div class="pipe">
+          <div class="pr">
+            <div class="pb pd">Customer Reviews<small>Darija + French + Arabic</small></div>
+            <span class="pa"></span>
+            <div class="pb pd">Text Cleaning<small>Normalise &middot; Standardise</small></div>
+            <span class="pa"></span>
+            <div class="pb pg">Smart Augmentation<small>1,500 &rarr; 9,481 samples</small></div>
+          </div>
+          <div class="pr">
+            <div class="pb pg">Training Data</div>
+            <span class="pa"></span>
+            <div class="pb pe">AraBERT v2 AI Model<small>Fine-tuned on NVIDIA H100</small></div>
+            <span class="pa"></span>
+            <div class="pb pe">Calibration<small>Per-class thresholds</small></div>
+          </div>
+          <div class="pr">
+            <div class="pb pe">95.06% Accuracy</div>
+            <span class="pa"></span>
+            <div class="pb px">Explainable AI<small>Token-level reasoning</small></div>
+            <span class="pa"></span>
+            <div class="pb px">Live Dashboard<small>Real-time insights</small></div>
+          </div>
+        </div>
+        <p><span class="b">Key technical choices:</span></p>
+        <ul>
+          <li><span class="b">AraBERT v2</span> &mdash; pre-trained on Maghrebi Arabic, ideal for Darija</li>
+          <li><span class="b">Teacher-Student learning</span> &mdash; the model teaches itself from unlabeled data</li>
+          <li><span class="b">Leakage-free evaluation</span> &mdash; test data never seen during training or tuning</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- RIGHT -->
+  <div class="col">
+
+    <div class="s">
+      <div class="sh"><span class="sn">4</span> Performance Results</div>
+      <div class="sb">
+        <p><span class="b">Technology:</span>
+          <span class="t tt">PyTorch 2.x</span>
+          <span class="t tt">Transformers</span>
+          <span class="t tt">scikit-learn</span>
+          <span class="t tt">FastAPI</span>
+          <span class="t tt">Streamlit</span>
+        </p>
+
+        <div class="mg">
+          <div class="mc"><span class="mv">95.06%</span><span class="ml">Accuracy</span></div>
+          <div class="mc"><span class="mv">94.37%</span><span class="ml">Macro-F1 Score</span></div>
+          <div class="mc"><span class="mv">5</span><span class="ml">Sentiment Classes</span></div>
+          <div class="mc"><span class="mv">H100</span><span class="ml">NVIDIA GPU</span></div>
+        </div>
+
+        <p><span class="b">Detailed breakdown (held-out test set):</span></p>
+        <table class="tb">
+          <thead><tr><th>Category</th><th>Precision</th><th>Recall</th><th>F1</th><th>Samples</th></tr></thead>
+          <tbody>
+            <tr><td class="rh">Suggestion</td><td>1.00</td><td>0.85</td><td>0.92</td><td>13</td></tr>
+            <tr><td class="rh">Negative</td><td>0.94</td><td>1.00</td><td>0.97</td><td>16</td></tr>
+            <tr><td class="rh">Neutral</td><td>0.92</td><td>0.86</td><td>0.89</td><td>14</td></tr>
+            <tr><td class="rh">Positive</td><td>0.96</td><td>1.00</td><td>0.98</td><td>25</td></tr>
+            <tr><td class="rh">Question</td><td>0.93</td><td>1.00</td><td>0.96</td><td>13</td></tr>
+          </tbody>
+        </table>
+
+        <p><span class="b">Confusion Matrix:</span></p>
+        <table class="tb cm">
+          <thead><tr><th></th><th>Sug</th><th>Neg</th><th>Neu</th><th>Pos</th><th>Que</th></tr></thead>
+          <tbody>
+            <tr><th>Sug</th>
+              <td style="background:rgba(22,101,52,0.80);color:#fff;font-weight:700;">11</td>
+              <td style="background:rgba(212,32,39,0.04);color:#bbb;">0</td>
+              <td style="background:rgba(212,32,39,0.12);color:#991b1b;">1</td>
+              <td style="background:rgba(212,32,39,0.12);color:#991b1b;">1</td>
+              <td style="background:rgba(212,32,39,0.04);color:#bbb;">0</td>
+            </tr>
+            <tr><th>Neg</th>
+              <td style="background:rgba(212,32,39,0.04);color:#bbb;">0</td>
+              <td style="background:rgba(22,101,52,0.90);color:#fff;font-weight:700;">16</td>
+              <td style="background:rgba(212,32,39,0.04);color:#bbb;">0</td>
+              <td style="background:rgba(212,32,39,0.04);color:#bbb;">0</td>
+              <td style="background:rgba(212,32,39,0.04);color:#bbb;">0</td>
+            </tr>
+            <tr><th>Neu</th>
+              <td style="background:rgba(212,32,39,0.04);color:#bbb;">0</td>
+              <td style="background:rgba(212,32,39,0.12);color:#991b1b;">1</td>
+              <td style="background:rgba(22,101,52,0.72);color:#fff;font-weight:700;">12</td>
+              <td style="background:rgba(212,32,39,0.12);color:#991b1b;">1</td>
+              <td style="background:rgba(212,32,39,0.04);color:#bbb;">0</td>
+            </tr>
+            <tr><th>Pos</th>
+              <td style="background:rgba(212,32,39,0.04);color:#bbb;">0</td>
+              <td style="background:rgba(212,32,39,0.04);color:#bbb;">0</td>
+              <td style="background:rgba(212,32,39,0.04);color:#bbb;">0</td>
+              <td style="background:rgba(22,101,52,1.00);color:#fff;font-weight:700;">25</td>
+              <td style="background:rgba(212,32,39,0.04);color:#bbb;">0</td>
+            </tr>
+            <tr><th>Que</th>
+              <td style="background:rgba(212,32,39,0.04);color:#bbb;">0</td>
+              <td style="background:rgba(212,32,39,0.04);color:#bbb;">0</td>
+              <td style="background:rgba(212,32,39,0.04);color:#bbb;">0</td>
+              <td style="background:rgba(212,32,39,0.04);color:#bbb;">0</td>
+              <td style="background:rgba(22,101,52,0.80);color:#fff;font-weight:700;">13</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="cap">Rows = actual category &middot; Columns = AI prediction &middot; All metrics on strictly held-out test data</div>
+      </div>
+    </div>
+
+    <div class="s">
+      <div class="sh"><span class="sn">5</span> What Makes This Special</div>
+      <div class="sb">
+        <ul>
+          <li><span class="b">100% recall on Positive &amp; Questions</span> &mdash; never misses a satisfied customer or a purchase inquiry</li>
+          <li><span class="b">Code-switching mastery</span> &mdash; handles "بزاف bon" and "mauvais جدا" seamlessly</li>
+          <li><span class="b">Honest scores</span> &mdash; 3 leakage safeguards ensure real-world reliability</li>
+          <li><span class="b">From 1,500 to 9,481 samples</span> &mdash; smart augmentation without hallucinated data</li>
+        </ul>
+        <div class="xb">
+          <div class="xt">&#128161; Explainable AI (XAI) &mdash; Key Innovation</div>
+          <p>Our system doesn't just predict &mdash; it <span class="b">explains why</span>. Using <span class="b">Attention Rollout</span> and <span class="b">Gradient&times;Attention</span>, it highlights which words drove each decision. For every prediction, stakeholders can see a color-coded evidence map showing the model's reasoning in real time.</p>
+        </div>
+        <div class="bv">
+          <div class="bvt">&#128200; Business Value for Ramy</div>
+          <p><span class="b">Actionable insights:</span> Automatically detect product complaints, surface improvement suggestions, and identify purchase-intent questions across thousands of reviews. Enable data-driven decisions for product teams, marketing, and customer service &mdash; all in real time, at scale.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="s">
+      <div class="sh"><span class="sn">6</span> Conclusion &amp; Impact</div>
+      <div class="sb">
+        <ul>
+          <li><span class="b">95% accuracy</span> on 5-class Arabic sentiment &mdash; from just 1,500 labeled samples</li>
+          <li><span class="b">Trustworthy metrics</span> via leakage-free evaluation protocol</li>
+          <li><span class="b">Transparent AI</span> with token-level explanations for enterprise trust</li>
+          <li><span class="b">Next steps:</span> Multi-turn dialogue analysis, real-time social media monitoring, and a production API for Ramy's customer intelligence platform</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- TEAM -->
+<div class="team">
+  <div class="tm"><div class="tn2">Samir Guenchi</div><div class="ta">ENSIA</div></div>
+  <div class="tm"><div class="tn2">Senouci Amira</div><div class="ta">ENSIA</div></div>
+  <div class="tm"><div class="tn2">Abdennour Guerroudj</div><div class="ta">USTHB</div></div>
+  <div class="tm"><div class="tn2">Megamez Abderrahmane</div><div class="ta">USTHB</div></div>
+</div>
+
+<!-- FOOTER -->
+<div class="ftr">
+  <div class="fl">Powered by Ramy &middot; AI EXPO 2026</div>
+  <img class="fr" src="Ramylogo.png" alt="Ramy">
+</div>
+
+</body>
+</html>
